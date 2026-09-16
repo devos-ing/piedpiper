@@ -1,0 +1,907 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-16",
+  "caveats": [
+    "This is one smoke test, not a statistically reliable ranking.",
+    "Command Code worker costs are preserved exactly as provider-reported zero and are not estimated.",
+    "Reasoning tokens are included in output/total semantics reported by Pi and are also shown separately.",
+    "durationMs sums session spans and is not a wall-clock critical path when sessions overlap.",
+    "The missing-fixture and invalid-viewport review attempts are retained as evaluation overhead but excluded from official scores."
+  ],
+  "browserEvidence": {
+    "browser": "Google Chrome 152.0.7977.83",
+    "devicePixelRatio": 1,
+    "zoomPercent": 100,
+    "captureDelayMs": 2000,
+    "transport": "Chrome DevTools Protocol device metrics override",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "width": 390,
+        "height": 844
+      }
+    ]
+  },
+  "officialResults": {
+    "sol": {
+      "initial": {
+        "score": 74,
+        "result": "FAIL"
+      },
+      "corrected": {
+        "score": 92,
+        "result": "PASS"
+      }
+    },
+    "glm": {
+      "result": "NO_ARTIFACT",
+      "attempts": 2
+    },
+    "deepseek": {
+      "result": "NO_ARTIFACT",
+      "attempts": 2
+    }
+  },
+  "aggregates": {
+    "shared_setup": {
+      "input": 1168,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "output": 6999,
+      "reasoning": 4018,
+      "totalTokens": 8167,
+      "cost": {
+        "input": 0.01168,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "output": 0.34995,
+        "total": 0.36163
+      },
+      "durationMs": 214597
+    },
+    "sol_initial": {
+      "input": 46828,
+      "cacheRead": 168192,
+      "cacheWrite": 0,
+      "output": 9747,
+      "reasoning": 2941,
+      "totalTokens": 224767,
+      "cost": {
+        "input": 0.388325,
+        "cacheRead": 0.154944,
+        "cacheWrite": 0,
+        "output": 0.35869,
+        "total": 0.901959
+      },
+      "durationMs": 412373
+    },
+    "glm_all_attempts": {
+      "input": 93139,
+      "cacheRead": 501888,
+      "cacheWrite": 0,
+      "output": 42753,
+      "reasoning": 36505,
+      "totalTokens": 637780,
+      "cost": {
+        "input": 0.68743,
+        "cacheRead": 0.46592,
+        "cacheWrite": 0,
+        "output": 0.4548,
+        "total": 1.60815
+      },
+      "durationMs": 2712360
+    },
+    "deepseek_all_attempts": {
+      "input": 46510,
+      "cacheRead": 287360,
+      "cacheWrite": 0,
+      "output": 41140,
+      "reasoning": 35634,
+      "totalTokens": 375010,
+      "cost": {
+        "input": 0.31742,
+        "cacheRead": 0.276224,
+        "cacheWrite": 0,
+        "output": 0.4051,
+        "total": 0.998744
+      },
+      "durationMs": 690173
+    },
+    "evaluation_overhead": {
+      "input": 77545,
+      "cacheRead": 200576,
+      "cacheWrite": 0,
+      "output": 30590,
+      "reasoning": 27234,
+      "totalTokens": 308711,
+      "cost": {
+        "input": 0.77545,
+        "cacheRead": 0.200576,
+        "cacheWrite": 0,
+        "output": 1.5295,
+        "total": 2.505526
+      },
+      "durationMs": 1037757
+    },
+    "sol_correction": {
+      "input": 57336,
+      "cacheRead": 323840,
+      "cacheWrite": 0,
+      "output": 10684,
+      "reasoning": 5428,
+      "totalTokens": 391860,
+      "cost": {
+        "input": 0.43005,
+        "cacheRead": 0.285824,
+        "cacheWrite": 0,
+        "output": 0.4048,
+        "total": 1.120674
+      },
+      "durationMs": 539187
+    },
+    "sol_all_execution": {
+      "input": 104164,
+      "cacheRead": 492032,
+      "cacheWrite": 0,
+      "output": 20431,
+      "reasoning": 8369,
+      "totalTokens": 616627,
+      "cost": {
+        "input": 0.818375,
+        "cacheRead": 0.440768,
+        "cacheWrite": 0,
+        "output": 0.76349,
+        "total": 2.022633
+      },
+      "durationMs": 951560
+    },
+    "all_recorded_sessions": {
+      "input": 322526,
+      "cacheRead": 1481856,
+      "cacheWrite": 0,
+      "output": 141913,
+      "reasoning": 111760,
+      "totalTokens": 1946295,
+      "cost": {
+        "input": 2.610355,
+        "cacheRead": 1.383488,
+        "cacheWrite": 0,
+        "output": 3.50284,
+        "total": 7.496683
+      },
+      "durationMs": 5606447
+    }
+  },
+  "sessions": [
+    {
+      "id": "shared-spec-oracle",
+      "group": "shared_setup",
+      "arm": "shared",
+      "attempt": 1,
+      "role": "spec-oracle",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "completed",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/oracle-spec-session/2026-09-16T07-45-55-795Z_01a0a92d-f253-7ddd-9787-b39ee796dd46.jsonl",
+      "first": "2026-09-16T07:45:55.795Z",
+      "last": "2026-09-16T07:49:30.392Z",
+      "assistantTurns": 1,
+      "stopReasons": [
+        "stop"
+      ],
+      "usage": {
+        "input": 1168,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "output": 6999,
+        "reasoning": 4018,
+        "totalTokens": 8167,
+        "cost": {
+          "input": 0.011680000000000001,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "output": 0.34995000000000004,
+          "total": 0.36163000000000006
+        }
+      },
+      "durationMs": 214597
+    },
+    {
+      "id": "sol-initial-piper",
+      "group": "sol_initial",
+      "arm": "sol",
+      "attempt": 1,
+      "role": "piper",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "integrated",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/sol/.git/piedpiper/sessions/2026-09-16T07-51-18-593Z_01a0a932-df40-7757-97e1-ca25bc4df3ae.jsonl",
+      "first": "2026-09-16T07:51:18.593Z",
+      "last": "2026-09-16T07:56:04.274Z",
+      "assistantTurns": 16,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 30837,
+        "cacheRead": 141696,
+        "cacheWrite": 0,
+        "output": 3314,
+        "reasoning": 955,
+        "totalTokens": 175847,
+        "cost": {
+          "input": 0.30837000000000003,
+          "cacheRead": 0.14169600000000002,
+          "cacheWrite": 0,
+          "output": 0.16570000000000004,
+          "total": 0.6157660000000001
+        }
+      },
+      "durationMs": 285681
+    },
+    {
+      "id": "sol-initial-worker",
+      "group": "sol_initial",
+      "arm": "sol",
+      "attempt": 1,
+      "role": "worker",
+      "model": "openai-codex/gpt-5.6-sol",
+      "effort": "medium",
+      "outcome": "committed",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/sol/.git/piedpiper/sessions/agents/2026-09-16T07-52-43-316Z_01a0a934-2a34-7fb1-8d07-a74dd226262e.jsonl",
+      "first": "2026-09-16T07:52:43.316Z",
+      "last": "2026-09-16T07:54:50.008Z",
+      "assistantTurns": 4,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 15991,
+        "cacheRead": 26496,
+        "cacheWrite": 0,
+        "output": 6433,
+        "reasoning": 1986,
+        "totalTokens": 48920,
+        "cost": {
+          "input": 0.079955,
+          "cacheRead": 0.013248,
+          "cacheWrite": 0,
+          "output": 0.19299,
+          "total": 0.286193
+        }
+      },
+      "durationMs": 126692
+    },
+    {
+      "id": "glm-initial-piper",
+      "group": "glm_all_attempts",
+      "arm": "glm",
+      "attempt": 1,
+      "role": "piper",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "not_integrable",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/glm/.git/piedpiper/sessions/2026-09-16T07-56-36-472Z_01a0a937-b8f8-70a5-8cd6-03fe70ad5920.jsonl",
+      "first": "2026-09-16T07:56:36.472Z",
+      "last": "2026-09-16T08:09:53.544Z",
+      "assistantTurns": 27,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "error",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "aborted",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 37134,
+        "cacheRead": 258688,
+        "cacheWrite": 0,
+        "output": 4329,
+        "reasoning": 1419,
+        "totalTokens": 300151,
+        "cost": {
+          "input": 0.37134,
+          "cacheRead": 0.258688,
+          "cacheWrite": 0,
+          "output": 0.21645,
+          "total": 0.846478
+        }
+      },
+      "durationMs": 797072
+    },
+    {
+      "id": "glm-initial-worker",
+      "group": "glm_all_attempts",
+      "arm": "glm",
+      "attempt": 1,
+      "role": "worker",
+      "model": "command-code/z-ai/glm-5.3-flash",
+      "effort": "off",
+      "outcome": "length_no_commit",
+      "costStatus": "provider_reported_zero_not_estimated",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/glm/.git/piedpiper/sessions/agents/2026-09-16T07-57-55-981Z_01a0a938-ef8d-7e3e-975c-36b76859ad78.jsonl",
+      "first": "2026-09-16T07:57:55.981Z",
+      "last": "2026-09-16T08:08:15.552Z",
+      "assistantTurns": 2,
+      "stopReasons": [
+        "toolUse",
+        "length"
+      ],
+      "usage": {
+        "input": 11438,
+        "cacheRead": 832,
+        "cacheWrite": 0,
+        "output": 16416,
+        "reasoning": 16398,
+        "totalTokens": 28686,
+        "cost": {
+          "input": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "output": 0,
+          "total": 0
+        }
+      },
+      "durationMs": 619571
+    },
+    {
+      "id": "glm-retry-piper",
+      "group": "glm_all_attempts",
+      "arm": "glm",
+      "attempt": 2,
+      "role": "piper",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "not_integrable",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/glm-retry/.git/piedpiper/sessions/2026-09-16T08-10-24-186Z_01a0a944-5a3a-79da-a6a0-c042ae208b7e.jsonl",
+      "first": "2026-09-16T08:10:24.186Z",
+      "last": "2026-09-16T08:22:51.801Z",
+      "assistantTurns": 22,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 31609,
+        "cacheRead": 207232,
+        "cacheWrite": 0,
+        "output": 4767,
+        "reasoning": 1857,
+        "totalTokens": 243608,
+        "cost": {
+          "input": 0.31609,
+          "cacheRead": 0.20723199999999997,
+          "cacheWrite": 0,
+          "output": 0.23835,
+          "total": 0.7616719999999998
+        }
+      },
+      "durationMs": 747615
+    },
+    {
+      "id": "glm-retry-worker",
+      "group": "glm_all_attempts",
+      "arm": "glm",
+      "attempt": 2,
+      "role": "worker",
+      "model": "command-code/z-ai/glm-5.3-flash",
+      "effort": "off",
+      "outcome": "length_no_commit",
+      "costStatus": "provider_reported_zero_not_estimated",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/glm-retry/.git/piedpiper/sessions/agents/2026-09-16T08-12-14-293Z_01a0a946-0855-7552-aea1-5d6d0a535353.jsonl",
+      "first": "2026-09-16T08:12:14.293Z",
+      "last": "2026-09-16T08:21:22.395Z",
+      "assistantTurns": 6,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "length"
+      ],
+      "usage": {
+        "input": 12958,
+        "cacheRead": 35136,
+        "cacheWrite": 0,
+        "output": 17241,
+        "reasoning": 16831,
+        "totalTokens": 65335,
+        "cost": {
+          "input": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "output": 0,
+          "total": 0
+        }
+      },
+      "durationMs": 548102
+    },
+    {
+      "id": "deepseek-initial-piper",
+      "group": "deepseek_all_attempts",
+      "arm": "deepseek",
+      "attempt": 1,
+      "role": "piper",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "not_integrable",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/deepseek/.git/piedpiper/sessions/2026-09-16T08-10-44-150Z_01a0a944-a836-72c5-aa5e-549d164d0e20.jsonl",
+      "first": "2026-09-16T08:10:44.150Z",
+      "last": "2026-09-16T08:14:52.376Z",
+      "assistantTurns": 14,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop",
+        "stop"
+      ],
+      "usage": {
+        "input": 15811,
+        "cacheRead": 131328,
+        "cacheWrite": 0,
+        "output": 3840,
+        "reasoning": 1127,
+        "totalTokens": 150979,
+        "cost": {
+          "input": 0.15811000000000003,
+          "cacheRead": 0.13132800000000003,
+          "cacheWrite": 0,
+          "output": 0.192,
+          "total": 0.4814379999999999
+        }
+      },
+      "durationMs": 248226
+    },
+    {
+      "id": "deepseek-initial-worker",
+      "group": "deepseek_all_attempts",
+      "arm": "deepseek",
+      "attempt": 1,
+      "role": "worker",
+      "model": "command-code/deepseek/deepseek-v4.1-flash",
+      "effort": "off",
+      "outcome": "length_no_commit",
+      "costStatus": "provider_reported_zero_not_estimated",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/deepseek/.git/piedpiper/sessions/agents/2026-09-16T08-12-09-078Z_01a0a945-f3f6-7495-8588-7a8b4b3ec14e.jsonl",
+      "first": "2026-09-16T08:12:09.078Z",
+      "last": "2026-09-16T08:13:40.701Z",
+      "assistantTurns": 2,
+      "stopReasons": [
+        "toolUse",
+        "length"
+      ],
+      "usage": {
+        "input": 7983,
+        "cacheRead": 4992,
+        "cacheWrite": 0,
+        "output": 16459,
+        "reasoning": 16384,
+        "totalTokens": 29434,
+        "cost": {
+          "input": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "output": 0,
+          "total": 0
+        }
+      },
+      "durationMs": 91623
+    },
+    {
+      "id": "deepseek-retry-piper",
+      "group": "deepseek_all_attempts",
+      "arm": "deepseek",
+      "attempt": 2,
+      "role": "piper",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "not_integrable",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/deepseek-retry/.git/piedpiper/sessions/2026-09-16T08-15-14-711Z_01a0a948-c917-7b0c-bbfc-cbed0a260193.jsonl",
+      "first": "2026-09-16T08:15:14.711Z",
+      "last": "2026-09-16T08:19:33.373Z",
+      "assistantTurns": 15,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 15931,
+        "cacheRead": 144896,
+        "cacheWrite": 0,
+        "output": 4262,
+        "reasoning": 1739,
+        "totalTokens": 165089,
+        "cost": {
+          "input": 0.15930999999999995,
+          "cacheRead": 0.144896,
+          "cacheWrite": 0,
+          "output": 0.21309999999999998,
+          "total": 0.517306
+        }
+      },
+      "durationMs": 258662
+    },
+    {
+      "id": "deepseek-retry-worker",
+      "group": "deepseek_all_attempts",
+      "arm": "deepseek",
+      "attempt": 2,
+      "role": "worker",
+      "model": "command-code/deepseek/deepseek-v4.1-flash",
+      "effort": "off",
+      "outcome": "length_no_commit",
+      "costStatus": "provider_reported_zero_not_estimated",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/deepseek-retry/.git/piedpiper/sessions/agents/2026-09-16T08-16-41-111Z_01a0a94a-1a97-76e7-af8d-aff23d558f17.jsonl",
+      "first": "2026-09-16T08:16:41.111Z",
+      "last": "2026-09-16T08:18:12.773Z",
+      "assistantTurns": 2,
+      "stopReasons": [
+        "toolUse",
+        "length"
+      ],
+      "usage": {
+        "input": 6785,
+        "cacheRead": 6144,
+        "cacheWrite": 0,
+        "output": 16579,
+        "reasoning": 16384,
+        "totalTokens": 29508,
+        "cost": {
+          "input": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "output": 0,
+          "total": 0
+        }
+      },
+      "durationMs": 91662
+    },
+    {
+      "id": "review-setup-failed",
+      "group": "evaluation_overhead",
+      "arm": "evaluation",
+      "attempt": 1,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "invalid_missing_fixture",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/A-initial/.git/piedpiper/sessions/2026-09-16T08-23-41-274Z_01a0a950-83da-74e0-aaf0-7687f5bcafeb.jsonl",
+      "first": "2026-09-16T08:23:41.274Z",
+      "last": "2026-09-16T08:24:38.196Z",
+      "assistantTurns": 5,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 7311,
+        "cacheRead": 20992,
+        "cacheWrite": 0,
+        "output": 1330,
+        "reasoning": 585,
+        "totalTokens": 29633,
+        "cost": {
+          "input": 0.07311000000000001,
+          "cacheRead": 0.020992,
+          "cacheWrite": 0,
+          "output": 0.0665,
+          "total": 0.160602
+        }
+      },
+      "durationMs": 56922
+    },
+    {
+      "id": "review-invalid-capture",
+      "group": "evaluation_overhead",
+      "arm": "evaluation",
+      "attempt": 2,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "invalid_viewport_evidence",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/A-review/.git/piedpiper/sessions/2026-09-16T08-25-40-467Z_01a0a952-5573-7212-94e9-f8b892585156.jsonl",
+      "first": "2026-09-16T08:25:40.467Z",
+      "last": "2026-09-16T08:31:01.348Z",
+      "assistantTurns": 8,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 22886,
+        "cacheRead": 64640,
+        "cacheWrite": 0,
+        "output": 9467,
+        "reasoning": 8388,
+        "totalTokens": 96993,
+        "cost": {
+          "input": 0.22886000000000004,
+          "cacheRead": 0.06463999999999999,
+          "cacheWrite": 0,
+          "output": 0.47335000000000005,
+          "total": 0.76685
+        }
+      },
+      "durationMs": 320881
+    },
+    {
+      "id": "sol-correction-piper",
+      "group": "sol_correction",
+      "arm": "sol",
+      "attempt": 2,
+      "role": "piper",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "integrated",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/A-correction/.git/piedpiper/sessions/2026-09-16T08-32-55-052Z_01a0a958-f70c-7e29-ba23-ca7ea0a3f5be.jsonl",
+      "first": "2026-09-16T08:32:55.052Z",
+      "last": "2026-09-16T08:38:51.440Z",
+      "assistantTurns": 21,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 28674,
+        "cacheRead": 247808,
+        "cacheWrite": 0,
+        "output": 4214,
+        "reasoning": 1653,
+        "totalTokens": 280696,
+        "cost": {
+          "input": 0.28674,
+          "cacheRead": 0.24780799999999994,
+          "cacheWrite": 0,
+          "output": 0.2107,
+          "total": 0.745248
+        }
+      },
+      "durationMs": 356388
+    },
+    {
+      "id": "sol-correction-worker",
+      "group": "sol_correction",
+      "arm": "sol",
+      "attempt": 2,
+      "role": "worker",
+      "model": "openai-codex/gpt-5.6-sol",
+      "effort": "medium",
+      "outcome": "committed",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/A-correction/.git/piedpiper/sessions/agents/2026-09-16T08-34-05-516Z_01a0a95a-0a4c-71a5-ac7f-895a62b25b09.jsonl",
+      "first": "2026-09-16T08:34:05.516Z",
+      "last": "2026-09-16T08:37:08.315Z",
+      "assistantTurns": 6,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 28662,
+        "cacheRead": 76032,
+        "cacheWrite": 0,
+        "output": 6470,
+        "reasoning": 3775,
+        "totalTokens": 111164,
+        "cost": {
+          "input": 0.14331000000000002,
+          "cacheRead": 0.038016,
+          "cacheWrite": 0,
+          "output": 0.1941,
+          "total": 0.37542600000000004
+        }
+      },
+      "durationMs": 182799
+    },
+    {
+      "id": "review-initial-final",
+      "group": "evaluation_overhead",
+      "arm": "evaluation",
+      "attempt": 3,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "valid_74_fail",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/A-review-cdp/.git/piedpiper/sessions/2026-09-16T08-43-20-366Z_01a0a962-81ae-7b2f-8f28-bf0b49f4c4ed.jsonl",
+      "first": "2026-09-16T08:43:20.366Z",
+      "last": "2026-09-16T08:49:17.953Z",
+      "assistantTurns": 9,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 24338,
+        "cacheRead": 82304,
+        "cacheWrite": 0,
+        "output": 10547,
+        "reasoning": 9628,
+        "totalTokens": 117189,
+        "cost": {
+          "input": 0.24338000000000004,
+          "cacheRead": 0.082304,
+          "cacheWrite": 0,
+          "output": 0.52735,
+          "total": 0.8530340000000001
+        }
+      },
+      "durationMs": 357587
+    },
+    {
+      "id": "review-corrected-final",
+      "group": "evaluation_overhead",
+      "arm": "evaluation",
+      "attempt": 4,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "valid_92_pass",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/A-corrected-review/.git/piedpiper/sessions/2026-09-16T08-43-20-366Z_01a0a962-81ae-76e5-9943-d8547fa855b5.jsonl",
+      "first": "2026-09-16T08:43:20.366Z",
+      "last": "2026-09-16T08:48:22.733Z",
+      "assistantTurns": 5,
+      "stopReasons": [
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "toolUse",
+        "stop"
+      ],
+      "usage": {
+        "input": 23010,
+        "cacheRead": 32640,
+        "cacheWrite": 0,
+        "output": 9246,
+        "reasoning": 8633,
+        "totalTokens": 64896,
+        "cost": {
+          "input": 0.23010000000000003,
+          "cacheRead": 0.03264,
+          "cacheWrite": 0,
+          "output": 0.46230000000000004,
+          "total": 0.72504
+        }
+      },
+      "durationMs": 302367
+    }
+  ]
+}
+

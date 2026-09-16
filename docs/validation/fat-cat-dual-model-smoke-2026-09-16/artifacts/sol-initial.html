@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A Fat Cat's Bicycle Ride</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #bfe7ed;
+    }
+    body {
+      display: grid;
+      place-items: center;
+    }
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: 800px;
+      max-height: 1000px;
+    }
+
+    .cloud-belt {
+      animation: cloud-drift 18s linear infinite;
+    }
+    .rear-wheel {
+      transform-origin: 210px 760px;
+      animation: wheel-turn 1.2s linear infinite;
+    }
+    .front-wheel {
+      transform-origin: 610px 760px;
+      animation: wheel-turn 1.2s linear infinite;
+    }
+    .crank,
+    .pedaling-legs {
+      transform-origin: 390px 748px;
+      animation: wheel-turn 1.2s linear infinite;
+    }
+    .tail {
+      transform-origin: 255px 474px;
+      animation: tail-sway 2.4s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+    }
+    .left-ear {
+      transform-origin: 310px 268px;
+      animation: ear-twitch 3.6s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+    }
+    .right-ear {
+      transform-origin: 405px 260px;
+      animation: ear-twitch 3.6s 0.18s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+    }
+
+    @keyframes wheel-turn {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes cloud-drift {
+      from { transform: translateX(0); }
+      to { transform: translateX(-400px); }
+    }
+    @keyframes tail-sway {
+      0%, 100% { transform: rotate(-7deg); }
+      50% { transform: rotate(11deg); }
+    }
+    @keyframes ear-twitch {
+      0%, 76%, 100% { transform: rotate(0deg); }
+      86% { transform: rotate(-8deg); }
+      93% { transform: rotate(5deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cloud-belt,
+      .rear-wheel,
+      .front-wheel,
+      .crank,
+      .pedaling-legs,
+      .tail,
+      .left-ear,
+      .right-ear {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <svg viewBox="0 0 800 1000" role="img" aria-labelledby="scene-title scene-desc" preserveAspectRatio="xMidYMid meet">
+    <title id="scene-title">A fat orange cat riding a blue bicycle</title>
+    <desc id="scene-desc">A broad, round orange cat sits on a bicycle, holding the handlebars and pedaling along a country road beneath drifting clouds.</desc>
+
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8ed4e6"/>
+        <stop offset="1" stop-color="#eaf6dc"/>
+      </linearGradient>
+      <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#71808a"/>
+        <stop offset="1" stop-color="#3f4b55"/>
+      </linearGradient>
+      <filter id="soft-shadow" x="-20%" y="-40%" width="140%" height="180%">
+        <feGaussianBlur stdDeviation="8"/>
+      </filter>
+    </defs>
+
+    <rect width="800" height="1000" fill="url(#sky)"/>
+    <circle cx="680" cy="135" r="62" fill="#ffe59a" opacity=".8"/>
+
+    <g class="cloud-belt" fill="#fff" opacity=".88">
+      <g transform="translate(70 125)">
+        <ellipse cx="0" cy="24" rx="62" ry="25"/>
+        <circle cx="-28" cy="5" r="30"/>
+        <circle cx="20" cy="0" r="39"/>
+      </g>
+      <g transform="translate(470 125)">
+        <ellipse cx="0" cy="24" rx="62" ry="25"/>
+        <circle cx="-28" cy="5" r="30"/>
+        <circle cx="20" cy="0" r="39"/>
+      </g>
+      <g transform="translate(870 125)">
+        <ellipse cx="0" cy="24" rx="62" ry="25"/>
+        <circle cx="-28" cy="5" r="30"/>
+        <circle cx="20" cy="0" r="39"/>
+      </g>
+    </g>
+
+    <g aria-hidden="true">
+      <path d="M0 505 Q105 405 218 508 Q335 367 474 510 Q650 354 800 508 L800 675 L0 675Z" fill="#789d67"/>
+      <path d="M0 552 Q150 454 292 555 Q453 439 800 548 L800 684 L0 684Z" fill="#4f8156"/>
+      <path d="M0 605 L210 600 L590 600 L800 605 L800 1000 L0 1000Z" fill="#72a957"/>
+
+      <g fill="#355f43">
+        <path d="M90 580 l28-96 28 96Z"/><rect x="113" y="563" width="10" height="43" fill="#7b5638"/>
+        <path d="M690 584 l35-116 35 116Z"/><rect x="720" y="560" width="11" height="50" fill="#7b5638"/>
+      </g>
+
+      <path d="M210 600 L590 600 L800 1000 L0 1000Z" fill="url(#road)"/>
+      <path d="M387 620 L413 620 L432 682 L368 682Z" fill="#f6df85" opacity=".9"/>
+      <path d="M353 730 L447 730 L489 842 L311 842Z" fill="#f6df85" opacity=".9"/>
+      <path d="M263 600 L0 1000" fill="none" stroke="#e8d9b7" stroke-width="12"/>
+      <path d="M537 600 L800 1000" fill="none" stroke="#e8d9b7" stroke-width="12"/>
+      <ellipse cx="410" cy="892" rx="338" ry="31" fill="#24343d" opacity=".22" filter="url(#soft-shadow)"/>
+    </g>
+
+    <!-- Bicycle wheels and frame -->
+    <g aria-hidden="true">
+      <g class="rear-wheel">
+        <circle cx="210" cy="760" r="119" fill="#f8faf6" fill-opacity=".14" stroke="#203440" stroke-width="13"/>
+        <g stroke="#8ea4aa" stroke-width="3">
+          <path d="M210 646 V874 M96 760 H324 M129 679 L291 841 M129 841 L291 679"/>
+        </g>
+        <circle cx="210" cy="646" r="6" fill="#f2b544"/>
+      </g>
+      <g class="front-wheel">
+        <circle cx="610" cy="760" r="119" fill="#f8faf6" fill-opacity=".14" stroke="#203440" stroke-width="13"/>
+        <g stroke="#8ea4aa" stroke-width="3">
+          <path d="M610 646 V874 M496 760 H724 M529 679 L691 841 M529 841 L691 679"/>
+        </g>
+        <circle cx="610" cy="646" r="6" fill="#f2b544"/>
+      </g>
+      <circle cx="210" cy="760" r="10" fill="#d9e5e5" stroke="#203440" stroke-width="5"/>
+      <circle cx="610" cy="760" r="10" fill="#d9e5e5" stroke="#203440" stroke-width="5"/>
+
+      <g fill="none" stroke="#207e91" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M210 760 L334 604 L390 748 L210 760Z"/>
+        <path d="M334 604 L526 622 L390 748Z"/>
+        <path d="M526 622 L610 760"/>
+      </g>
+      <path d="M526 622 L553 535 L610 760" fill="none" stroke="#174f62" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M528 538 H585 M553 538 L567 520" fill="none" stroke="#203440" stroke-width="13" stroke-linecap="round"/>
+
+      <path d="M306 589 Q339 574 373 592" fill="none" stroke="#203440" stroke-width="19" stroke-linecap="round"/>
+      <path d="M337 591 L334 604" stroke="#203440" stroke-width="10"/>
+    </g>
+
+    <!-- Tail passes behind the body but stays attached at its base. -->
+    <g class="tail" aria-hidden="true">
+      <path d="M267 470 Q178 448 151 515 Q128 570 74 545" fill="none" stroke="#d77b2e" stroke-width="47" stroke-linecap="round"/>
+      <path d="M104 557 Q82 558 67 544" fill="none" stroke="#9b5526" stroke-width="18" stroke-linecap="round"/>
+    </g>
+
+    <!-- Rider -->
+    <g aria-hidden="true">
+      <ellipse cx="363" cy="493" rx="151" ry="177" fill="#d97a2c" stroke="#8f4d25" stroke-width="7"/>
+      <ellipse cx="382" cy="511" rx="112" ry="139" fill="#f3b75f"/>
+      <path d="M256 467 Q237 525 263 571 M470 447 Q501 505 475 565" fill="none" stroke="#a65c29" stroke-width="16" stroke-linecap="round" opacity=".7"/>
+
+      <g class="left-ear">
+        <path d="M286 288 L301 203 L352 270Z" fill="#d97a2c" stroke="#8f4d25" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M302 266 L310 228 L333 266Z" fill="#ef9c8f"/>
+      </g>
+      <g class="right-ear">
+        <path d="M382 266 L431 199 L445 296Z" fill="#d97a2c" stroke="#8f4d25" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M405 263 L427 225 L433 273Z" fill="#ef9c8f"/>
+      </g>
+      <ellipse cx="362" cy="322" rx="105" ry="88" fill="#df8534" stroke="#8f4d25" stroke-width="7"/>
+      <ellipse cx="362" cy="344" rx="65" ry="51" fill="#f8d692"/>
+      <path d="M317 287 Q333 270 348 287 M379 283 Q396 266 413 282" fill="none" stroke="#8f4d25" stroke-width="9" stroke-linecap="round"/>
+      <ellipse cx="333" cy="310" rx="8" ry="12" fill="#24343d"/>
+      <ellipse cx="396" cy="306" rx="8" ry="12" fill="#24343d"/>
+      <path d="M353 330 L371 330 L362 342Z" fill="#a94f4f"/>
+      <path d="M362 343 Q344 362 330 346 M362 343 Q378 361 393 344" fill="none" stroke="#8f4d25" stroke-width="5" stroke-linecap="round"/>
+      <g stroke="#8f4d25" stroke-width="4" stroke-linecap="round">
+        <path d="M312 340 L257 329 M313 352 L253 354 M411 334 L464 319 M410 347 L470 344"/>
+      </g>
+
+      <!-- Broad thighs lead into the rotating lower legs at the crank. -->
+      <path d="M307 560 Q326 646 382 744" fill="none" stroke="#d97a2c" stroke-width="54" stroke-linecap="round"/>
+      <path d="M432 558 Q442 652 397 744" fill="none" stroke="#bf6429" stroke-width="47" stroke-linecap="round"/>
+    </g>
+
+    <!-- The lower legs, paws, crank arms, and pedals share one rotation. -->
+    <g class="pedaling-legs" aria-hidden="true">
+      <path d="M390 748 L456 748" stroke="#bf6429" stroke-width="32" stroke-linecap="round"/>
+      <ellipse cx="463" cy="748" rx="28" ry="18" fill="#f1a44b" stroke="#8f4d25" stroke-width="5"/>
+      <path d="M390 748 L324 748" stroke="#d97a2c" stroke-width="34" stroke-linecap="round"/>
+      <ellipse cx="317" cy="748" rx="28" ry="18" fill="#f6b456" stroke="#8f4d25" stroke-width="5"/>
+    </g>
+    <g class="crank" aria-hidden="true">
+      <path d="M390 748 H462 M390 748 H318" stroke="#203440" stroke-width="9" stroke-linecap="round"/>
+      <path d="M448 765 H484 M296 731 H332" stroke="#f2b544" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <circle cx="390" cy="748" r="18" fill="#e8eef0" stroke="#203440" stroke-width="7" aria-hidden="true"/>
+
+    <!-- Forelegs end in paws wrapped over the handlebar. -->
+    <g aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M441 414 Q488 444 548 526" stroke="#b86128" stroke-width="32"/>
+      <path d="M423 431 Q470 475 530 536" stroke="#df8534" stroke-width="35"/>
+      <path d="M548 526 Q558 534 568 526" stroke="#f3ad51" stroke-width="24"/>
+      <path d="M530 536 Q540 544 551 535" stroke="#ffc56b" stroke-width="25"/>
+    </g>
+  </svg>
+</body>
+</html>
+
+

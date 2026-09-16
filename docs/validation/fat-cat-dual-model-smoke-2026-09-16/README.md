@@ -2,6 +2,8 @@
 
 日期：2026-09-16
 
+先讀 [`BENCHMARK.md`](BENCHMARK.md)，可快速了解任務、方法、結果與用量口徑。本頁保留完整執行紀錄。
+
 ## 結論
 
 這個題目本身不大；加入固定 SVG/CSS 動畫、桌面與手機、reduced motion、無外部資源、二元 rubric、獨立 review、一次修正與完整用量記錄後，適合作為**中型 orchestration smoke test**。它不適合用來聲稱模型排名，因為每條路由只有一個題目，而且 GLM、DeepSeek 兩組沒有交付可評分產物。

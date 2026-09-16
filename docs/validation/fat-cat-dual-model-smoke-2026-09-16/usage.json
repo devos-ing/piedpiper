@@ -6,7 +6,8 @@
     "Command Code worker costs are preserved exactly as provider-reported zero and are not estimated.",
     "Reasoning tokens are included in output/total semantics reported by Pi and are also shown separately.",
     "durationMs sums session spans and is not a wall-clock critical path when sessions overlap.",
-    "The missing-fixture and invalid-viewport review attempts are retained as evaluation overhead but excluded from official scores."
+    "The missing-fixture and invalid-viewport review attempts are retained as evaluation overhead but excluded from official scores.",
+    "Three Astra-high Pied Piper PNG-read crashes and one unsupported interactive @image attempt are retained as evaluation overhead; the valid visual review used the same Pi runtime in non-interactive attachment mode."
   ],
   "browserEvidence": {
     "browser": "Google Chrome 152.0.7977.83",
@@ -43,6 +44,13 @@
     "deepseek": {
       "result": "NO_ARTIFACT",
       "attempts": 2
+    },
+    "astra_high": {
+      "initial": {
+        "score": 100,
+        "result": "PASS"
+      },
+      "correctionRequired": false
     }
   },
   "aggregates": {
@@ -110,21 +118,69 @@
       },
       "durationMs": 690173
     },
-    "evaluation_overhead": {
-      "input": 77545,
-      "cacheRead": 200576,
+    "astra_high_initial": {
+      "input": 68455,
+      "cacheRead": 344192,
       "cacheWrite": 0,
-      "output": 30590,
-      "reasoning": 27234,
-      "totalTokens": 308711,
+      "output": 15856,
+      "reasoning": 5671,
+      "totalTokens": 428503,
       "cost": {
-        "input": 0.77545,
-        "cacheRead": 0.200576,
+        "input": 0.68455,
+        "cacheRead": 0.344192,
         "cacheWrite": 0,
-        "output": 1.5295,
-        "total": 2.505526
+        "output": 0.7928,
+        "total": 1.821542
       },
-      "durationMs": 1037757
+      "durationMs": 925267
+    },
+    "astra_high_evaluation": {
+      "input": 68292,
+      "cacheRead": 33280,
+      "cacheWrite": 0,
+      "output": 11764,
+      "reasoning": 10084,
+      "totalTokens": 113336,
+      "cost": {
+        "input": 0.68292,
+        "cacheRead": 0.03328,
+        "cacheWrite": 0,
+        "output": 0.5882,
+        "total": 1.3044
+      },
+      "durationMs": 468144
+    },
+    "astra_high_all_recorded": {
+      "input": 136747,
+      "cacheRead": 377472,
+      "cacheWrite": 0,
+      "output": 27620,
+      "reasoning": 15755,
+      "totalTokens": 541839,
+      "cost": {
+        "input": 1.36747,
+        "cacheRead": 0.377472,
+        "cacheWrite": 0,
+        "output": 1.381,
+        "total": 3.125942
+      },
+      "durationMs": 1393411
+    },
+    "evaluation_overhead": {
+      "input": 145837,
+      "cacheRead": 233856,
+      "cacheWrite": 0,
+      "output": 42354,
+      "reasoning": 37318,
+      "totalTokens": 422047,
+      "cost": {
+        "input": 1.45837,
+        "cacheRead": 0.233856,
+        "cacheWrite": 0,
+        "output": 2.1177,
+        "total": 3.809926
+      },
+      "durationMs": 1505901
     },
     "sol_correction": {
       "input": 57336,
@@ -159,20 +215,20 @@
       "durationMs": 951560
     },
     "all_recorded_sessions": {
-      "input": 322526,
-      "cacheRead": 1481856,
+      "input": 459273,
+      "cacheRead": 1859328,
       "cacheWrite": 0,
-      "output": 141913,
-      "reasoning": 111760,
-      "totalTokens": 1946295,
+      "output": 169533,
+      "reasoning": 127515,
+      "totalTokens": 2488134,
       "cost": {
-        "input": 2.610355,
-        "cacheRead": 1.383488,
+        "input": 3.977825,
+        "cacheRead": 1.76096,
         "cacheWrite": 0,
-        "output": 3.50284,
-        "total": 7.496683
+        "output": 4.88384,
+        "total": 10.622625
       },
-      "durationMs": 5606447
+      "durationMs": 6999858
     }
   },
   "sessions": [
@@ -901,7 +957,237 @@
         }
       },
       "durationMs": 302367
+    },
+    {
+      "id": "astra-high-initial-piper",
+      "group": "astra_high_initial",
+      "arm": "astra_high",
+      "attempt": 1,
+      "role": "piper",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "integrated",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/astra-high/.git/piedpiper/sessions/2026-09-16T12-26-29-080Z_01a0aa2e-cd58-789b-ac68-a12056c404cb.jsonl",
+      "first": "2026-09-16T12:26:29.080Z",
+      "last": "2026-09-16T12:35:47.564Z",
+      "assistantTurns": 25,
+      "stopReasons": [
+        "toolUse", "toolUse", "toolUse", "toolUse", "toolUse",
+        "toolUse", "toolUse", "toolUse", "toolUse", "toolUse",
+        "toolUse", "toolUse", "toolUse", "toolUse", "toolUse",
+        "toolUse", "toolUse", "toolUse", "toolUse", "stop",
+        "toolUse", "toolUse", "toolUse", "toolUse", "stop"
+      ],
+      "usage": {
+        "input": 41372,
+        "cacheRead": 286592,
+        "cacheWrite": 0,
+        "output": 4321,
+        "reasoning": 1182,
+        "totalTokens": 332285,
+        "cost": {
+          "input": 0.41372,
+          "cacheRead": 0.286592,
+          "cacheWrite": 0,
+          "output": 0.21605,
+          "total": 0.916362
+        }
+      },
+      "durationMs": 558484
+    },
+    {
+      "id": "astra-high-initial-worker",
+      "group": "astra_high_initial",
+      "arm": "astra_high",
+      "attempt": 1,
+      "role": "worker",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "high",
+      "outcome": "completed_committed_integrated",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/runs/astra-high/.git/piedpiper/sessions/agents/2026-09-16T12-27-59-151Z_01a0aa30-2d2f-78c1-b72d-d6ca507b023f.jsonl",
+      "first": "2026-09-16T12:27:59.151Z",
+      "last": "2026-09-16T12:34:05.934Z",
+      "assistantTurns": 5,
+      "stopReasons": ["toolUse", "toolUse", "toolUse", "toolUse", "stop"],
+      "usage": {
+        "input": 27083,
+        "cacheRead": 57600,
+        "cacheWrite": 0,
+        "output": 11535,
+        "reasoning": 4489,
+        "totalTokens": 96218,
+        "cost": {
+          "input": 0.27083,
+          "cacheRead": 0.0576,
+          "cacheWrite": 0,
+          "output": 0.57675,
+          "total": 0.90518
+        }
+      },
+      "durationMs": 366783
+    },
+    {
+      "id": "astra-high-review-png-read-crash-1",
+      "group": "astra_high_evaluation",
+      "arm": "evaluation",
+      "attempt": 5,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "invalid_exit_133_no_score",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/astra-high-initial/.git/piedpiper/sessions/2026-09-16T12-37-41-488Z_01a0aa39-0ff0-75d6-9e76-4604d4bbf58d.jsonl",
+      "first": "2026-09-16T12:37:41.488Z",
+      "last": "2026-09-16T12:38:09.988Z",
+      "assistantTurns": 4,
+      "stopReasons": ["toolUse", "toolUse", "toolUse", "toolUse"],
+      "usage": {
+        "input": 12719,
+        "cacheRead": 12032,
+        "cacheWrite": 0,
+        "output": 144,
+        "reasoning": 0,
+        "totalTokens": 24895,
+        "cost": {
+          "input": 0.12719,
+          "cacheRead": 0.012032,
+          "cacheWrite": 0,
+          "output": 0.0072,
+          "total": 0.146422
+        }
+      },
+      "durationMs": 28500
+    },
+    {
+      "id": "astra-high-review-png-read-crash-2",
+      "group": "astra_high_evaluation",
+      "arm": "evaluation",
+      "attempt": 6,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "invalid_exit_133_no_score",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/astra-high-review-retry/.git/piedpiper/sessions/2026-09-16T12-38-40-819Z_01a0aa39-f7b3-7f6a-9896-ca076d6bc395.jsonl",
+      "first": "2026-09-16T12:38:40.819Z",
+      "last": "2026-09-16T12:39:01.559Z",
+      "assistantTurns": 3,
+      "stopReasons": ["toolUse", "toolUse", "toolUse"],
+      "usage": {
+        "input": 12435,
+        "cacheRead": 9088,
+        "cacheWrite": 0,
+        "output": 60,
+        "reasoning": 0,
+        "totalTokens": 21583,
+        "cost": {
+          "input": 0.12435,
+          "cacheRead": 0.009088,
+          "cacheWrite": 0,
+          "output": 0.003,
+          "total": 0.136438
+        }
+      },
+      "durationMs": 20740
+    },
+    {
+      "id": "astra-high-review-png-read-crash-3",
+      "group": "astra_high_evaluation",
+      "arm": "evaluation",
+      "attempt": 7,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "invalid_exit_133_no_score",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/astra-high-review-proxy/.git/piedpiper/sessions/2026-09-16T12-40-26-622Z_01a0aa3b-94fe-7ce6-a1f5-c7f08d1408ad.jsonl",
+      "first": "2026-09-16T12:40:26.622Z",
+      "last": "2026-09-16T12:40:58.170Z",
+      "assistantTurns": 3,
+      "stopReasons": ["toolUse", "toolUse", "toolUse"],
+      "usage": {
+        "input": 15574,
+        "cacheRead": 6144,
+        "cacheWrite": 0,
+        "output": 113,
+        "reasoning": 50,
+        "totalTokens": 21831,
+        "cost": {
+          "input": 0.15574,
+          "cacheRead": 0.006144,
+          "cacheWrite": 0,
+          "output": 0.00565,
+          "total": 0.167534
+        }
+      },
+      "durationMs": 31548
+    },
+    {
+      "id": "astra-high-review-interactive-attachment-unsupported",
+      "group": "astra_high_evaluation",
+      "arm": "evaluation",
+      "attempt": 8,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "invalid_no_attached_images_no_score",
+      "costStatus": "reported",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/astra-high-review-attached/.git/piedpiper/sessions/2026-09-16T12-42-22-347Z_01a0aa3d-590b-75ee-a55e-ef8fcc524a66.jsonl",
+      "first": "2026-09-16T12:42:22.347Z",
+      "last": "2026-09-16T12:45:30.264Z",
+      "assistantTurns": 3,
+      "stopReasons": ["toolUse", "toolUse", "stop"],
+      "usage": {
+        "input": 15357,
+        "cacheRead": 6016,
+        "cacheWrite": 0,
+        "output": 4976,
+        "reasoning": 4856,
+        "totalTokens": 26349,
+        "cost": {
+          "input": 0.15357,
+          "cacheRead": 0.006016,
+          "cacheWrite": 0,
+          "output": 0.2488,
+          "total": 0.408386
+        }
+      },
+      "durationMs": 187917
+    },
+    {
+      "id": "astra-high-review-valid-attachment-fallback",
+      "group": "astra_high_evaluation",
+      "arm": "evaluation",
+      "attempt": 9,
+      "role": "reviewer",
+      "model": "openai-codex/gpt-6-astra",
+      "effort": "xhigh",
+      "outcome": "valid_100_pass",
+      "costStatus": "reported",
+      "executionPath": "pi_cli_noninteractive_image_attachment",
+      "rawSession": ".scratch/benchmarks/fat-cat-dual-model/reviews/astra-high-review-attached/.pi-review-sessions/2026-09-16T12-46-49-561Z_01a0aa41-6cd8-7cdd-9287-680f793d3836.jsonl",
+      "first": "2026-09-16T12:46:49.561Z",
+      "last": "2026-09-16T12:50:09.000Z",
+      "assistantTurns": 1,
+      "stopReasons": ["stop"],
+      "usage": {
+        "input": 12207,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "output": 6471,
+        "reasoning": 5178,
+        "totalTokens": 18678,
+        "cost": {
+          "input": 0.12207,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "output": 0.32355,
+          "total": 0.44562
+        }
+      },
+      "durationMs": 199439
     }
   ]
 }
-

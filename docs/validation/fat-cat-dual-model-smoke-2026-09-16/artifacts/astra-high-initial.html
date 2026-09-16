@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>The long way home · A cat on a bicycle</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #f5efdf;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    main {
+      width: min(100vw, 108.108vh, 1040px);
+      width: min(100vw, 108.108svh, 1040px);
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* Local zeroes are the hubs, established by the enclosing translations. */
+    .wheel-spin {
+      transform-origin: 0 0;
+      animation: turn 1.6s linear infinite;
+    }
+
+    .crank-spin {
+      transform-origin: 0 0;
+      animation: turn 2.4s linear infinite;
+    }
+
+    /* Linear rotation follows the constant-speed crank. Counter-rotation keeps
+       the paws level, with the circling upper joints concealed by the haunch. */
+    .pedal-level {
+      transform-origin: 0 0;
+      animation: level 2.4s linear infinite;
+    }
+
+    .tail {
+      transform-origin: 295px 369px;
+      animation: tail-sway 3.8s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+    }
+
+    .scarf-end {
+      transform-origin: 438px 294px;
+      animation: scarf-flutter 2.8s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+    }
+
+    .clouds {
+      animation: cloud-drift 9s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+    }
+
+    @keyframes turn {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes level {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(-360deg); }
+    }
+
+    @keyframes tail-sway {
+      0%, 100% { transform: rotate(-5deg); }
+      50% { transform: rotate(6deg); }
+    }
+
+    @keyframes scarf-flutter {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(12deg); }
+    }
+
+    @keyframes cloud-drift {
+      0%, 100% { transform: translateX(-10px); }
+      50% { transform: translateX(10px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .wheel-spin, .crank-spin, .pedal-level,
+      .tail, .scarf-end, .clouds {
+        animation: none;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 740"
+         role="img" aria-labelledby="scene-title scene-description" focusable="false">
+      <title id="scene-title">The long way home</title>
+      <desc id="scene-description">A very round ginger cat in a red scarf pedals a teal
+        bicycle along a country road. Its paws hold the handlebars, its feet turn
+        the pedals, and its striped tail sways. Two spoked wheels roll past green
+        hills beneath a warm sun. With reduced motion, the whole scene rests.</desc>
+
+      <defs>
+        <linearGradient id="sky-wash" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e3eee5"/>
+          <stop offset="1" stop-color="#f5efdf"/>
+        </linearGradient>
+        <linearGradient id="fur-wash" x1="0" y1="0" x2="0.8" y2="1">
+          <stop offset="0" stop-color="#efb563"/>
+          <stop offset="1" stop-color="#da8b45"/>
+        </linearGradient>
+        <g id="tire">
+          <circle r="104" fill="#ece8d7" fill-opacity="0.25" stroke="#293f3e" stroke-width="12"/>
+          <circle r="96" fill="none" stroke="#fbefd3" stroke-width="5"/>
+          <circle r="91" fill="none" stroke="#647774" stroke-width="2"/>
+        </g>
+        <g id="spokes" fill="none" stroke="#778b85" stroke-width="2.3">
+          <path d="M-90 0H90 M0-90V90 M-63.64-63.64L63.64 63.64 M-63.64 63.64L63.64-63.64
+                   M-83.15-34.44L83.15 34.44 M-34.44-83.15L34.44 83.15
+                   M-83.15 34.44L83.15-34.44 M-34.44 83.15L34.44-83.15"/>
+          <path d="M51-65L61-55" stroke="#df9951" stroke-width="7"/>
+          <path d="M-61 55L-51 65" stroke="#df9951" stroke-width="7"/>
+        </g>
+      </defs>
+
+      <g stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <!-- The sky and rolling fields. -->
+        <path d="M30 430V166Q30 48 150 48H650Q770 48 770 166V430Z" fill="url(#sky-wash)"/>
+        <circle cx="640" cy="161" r="52" fill="#eac16d"/>
+        <circle cx="640" cy="161" r="65" fill="none" stroke="#eac16d" stroke-opacity="0.3" stroke-width="2"/>
+
+        <g class="clouds" fill="#fffaf0">
+          <path d="M91 172C75 170 77 151 93 150C93 130 118 123 132 138
+                   C146 127 165 136 167 149C190 147 199 172 178 175H98Z"/>
+          <path d="M305 114C293 113 294 98 309 97C314 78 340 79 346 98
+                   C364 91 380 104 374 116H307Z"/>
+          <path d="M607 267C593 266 592 252 610 250C613 232 636 230 644 244
+                   C661 238 676 249 672 264Z"/>
+        </g>
+        <g fill="none" stroke="#879b8c" stroke-width="2.5">
+          <path d="M214 210Q221 201 229 207Q236 199 243 204"/>
+          <path d="M263 174Q270 168 276 174Q282 166 289 169"/>
+        </g>
+
+        <path d="M30 393Q132 266 250 341Q345 267 442 353Q548 291 659 345
+                 Q727 341 770 376V484H30Z" fill="#c6d3aa"/>
+        <path d="M30 423Q143 348 270 403Q390 330 515 396Q645 349 770 419V537H30Z"
+              fill="#a7bd91"/>
+        <path d="M30 471Q195 397 361 462Q587 368 770 464V695Q770 715 750 715H50
+                 Q30 715 30 695Z" fill="#879f76"/>
+        <path d="M51 471Q148 445 228 457 M508 442Q615 414 705 444"
+              fill="none" stroke="#c5d09a" stroke-width="3"/>
+
+        <!-- Road edges converge at the distant gap in the hills. -->
+        <path d="M577 397L605 397C619 454 680 481 770 523V695Q770 715 750 715H50
+                 Q30 715 30 695V600C121 518 472 468 577 397Z" fill="#c7b9a0"/>
+        <path d="M578 402C466 483 138 530 36 606 M606 403C620 457 683 488 764 527"
+              fill="none" stroke="#e9ddbc" stroke-width="5"/>
+        <g fill="#eee3c6">
+          <path d="M588 410L591 410L585 420L581 420Z"/>
+          <path d="M568 436L574 437L560 451L552 450Z"/>
+          <path d="M530 472L540 475L516 496L502 491Z"/>
+          <path d="M471 524L488 531L456 562L432 552Z"/>
+          <path d="M399 594L429 610L390 655L346 632Z"/>
+          <path d="M313 676L362 704L354 715H275Z"/>
+        </g>
+
+        <!-- Roadside trees grow smaller toward the vanishing point. -->
+        <g stroke="#687f62" fill="none">
+          <path d="M100 478V355M100 414L78 392M100 397L120 374" stroke-width="7"/>
+          <path d="M710 473V381M710 425L695 410" stroke-width="5"/>
+          <path d="M640 405V369" stroke-width="3"/>
+        </g>
+        <g fill="#6f8c6b">
+          <path d="M63 372C43 341 67 306 91 323C101 290 137 310 133 337
+                   C159 348 143 381 121 385C99 402 68 393 63 372Z"/>
+          <path d="M686 412C665 391 681 369 696 372C701 349 727 357 731 377
+                   C750 382 748 408 730 416C715 426 697 425 686 412Z"/>
+          <ellipse cx="640" cy="368" rx="15" ry="23"/>
+        </g>
+        <g fill="none" stroke="#a7b993" stroke-width="2.5">
+          <path d="M82 343L101 362L115 337M101 362V378"/>
+          <path d="M700 383L714 395L723 381"/>
+        </g>
+        <g stroke="#5c795e" stroke-width="3" fill="none">
+          <path d="M65 533L61 521M65 533L74 520M742 497L740 482M742 497L751 489
+                   M164 488L158 479M164 488L166 475"/>
+        </g>
+        <g fill="#f5df9b">
+          <circle cx="61" cy="518" r="4"/>
+          <circle cx="75" cy="518" r="4"/>
+          <circle cx="740" cy="480" r="3"/>
+        </g>
+
+        <!-- Contact shadows and two independently rotating wheel assemblies. -->
+        <ellipse cx="421" cy="648" rx="291" ry="17" fill="#756e5d" opacity="0.16"/>
+        <ellipse cx="232" cy="645" rx="72" ry="6" fill="#756e5d" opacity="0.19"/>
+        <ellipse cx="610" cy="645" rx="72" ry="6" fill="#756e5d" opacity="0.19"/>
+        <g id="rear-wheel" transform="translate(232 537)">
+          <use href="#tire"/>
+          <g class="wheel-spin"><use href="#spokes"/></g>
+          <circle r="10" fill="#e8ddbf" stroke="#293f3e" stroke-width="4"/>
+        </g>
+        <g id="front-wheel" transform="translate(610 537)">
+          <use href="#tire"/>
+          <g class="wheel-spin"><use href="#spokes"/></g>
+          <circle r="9" fill="#e8ddbf" stroke="#293f3e" stroke-width="4"/>
+        </g>
+
+        <!-- The far foot is half a revolution opposite the near foot. -->
+        <g id="far-pedal-and-leg" transform="translate(403 509)">
+          <g class="crank-spin">
+            <path d="M0 0H-30" fill="none" stroke="#52675f" stroke-width="8"/>
+            <g transform="translate(-30 0)">
+              <g class="pedal-level">
+                <path d="M-54-98Q-47-59-6-12" fill="none" stroke="#734d34" stroke-width="30"/>
+                <path d="M-54-98Q-47-59-6-12" fill="none" stroke="#bd783d" stroke-width="23"/>
+                <rect x="-23" y="0" width="45" height="8" rx="3" fill="#344b46"/>
+                <path d="M-18-4Q-22-22-8-23Q1-21 5-17Q23-18 23-6Q22 0 12 0H-10Z"
+                      fill="#bd783d" stroke="#734d34" stroke-width="2.5"/>
+              </g>
+            </g>
+          </g>
+        </g>
+
+        <!-- A low step-through frame leaves room for a generous belly. -->
+        <g id="bicycle-frame" fill="none">
+          <path d="M232 537L342 449L403 509Z" stroke="#284c49" stroke-width="12"/>
+          <path d="M232 537L342 449L403 509Z" stroke="#519a8b" stroke-width="7"/>
+          <path d="M342 449Q430 494 558 442M403 509L564 462L550 412"
+                stroke="#284c49" stroke-width="14"/>
+          <path d="M342 449Q430 494 558 442M403 509L564 462L550 412"
+                stroke="#60a995" stroke-width="8"/>
+          <path d="M555 415L571 465L610 537" stroke="#284c49" stroke-width="12"/>
+          <path d="M555 415L571 465L610 537" stroke="#72b39e" stroke-width="6"/>
+          <path d="M342 449L335 429" stroke="#354e48" stroke-width="8"/>
+          <path d="M550 412L536 354H565Q590 351 590 373" stroke="#334d47" stroke-width="9"/>
+          <path d="M548 354H567M590 364V376" stroke="#754d37" stroke-width="12"/>
+          <path d="M581 365Q600 397 566 445" stroke="#52675f" stroke-width="2"/>
+          <path d="M405 494L237 527Q219 536 237 547L405 525"
+                stroke="#607469" stroke-width="3"/>
+        </g>
+        <path d="M299 424Q332 419 369 427Q378 430 371 437L309 438Q293 437 299 424Z"
+              fill="#624a38" stroke="#34463d" stroke-width="3"/>
+        <path d="M307 426Q337 424 365 430" fill="none" stroke="#ad8050" stroke-width="3"/>
+        <circle cx="403" cy="509" r="22" fill="#d8d5b9" stroke="#334d47" stroke-width="4"/>
+        <circle cx="403" cy="509" r="15" fill="#7f9c8a"/>
+        <circle cx="610" cy="537" r="5" fill="#f3e2ba"/>
+
+        <!-- Tail, body and the arm that reaches the handlebar grip. -->
+        <g class="tail">
+          <path d="M295 369C251 393 206 366 204 331C204 310 223 299 218 279"
+                fill="none" stroke="#734d34" stroke-width="29"/>
+          <path d="M295 369C251 393 206 366 204 331C204 310 223 299 218 279"
+                fill="none" stroke="#df974e" stroke-width="23"/>
+          <path d="M213 302L225 307M193 335L215 334M207 365L223 349M242 383L249 362"
+                fill="none" stroke="#a66437" stroke-width="10"/>
+        </g>
+        <path id="cat-body" d="M314 270C344 241 391 237 437 258C475 269 497 304 506 345
+                 C520 399 483 428 425 434C391 438 358 427 329 430
+                 C290 432 271 408 269 371C264 329 280 291 314 270Z"
+              fill="url(#fur-wash)" stroke="#734d34" stroke-width="3.5"/>
+        <path d="M436 294C474 301 494 329 496 361C501 397 473 420 434 422
+                 C406 423 386 403 388 370C391 335 407 306 436 294Z"
+              fill="#f8dba0"/>
+        <path d="M285 308Q308 317 319 303M276 333Q298 344 310 330M278 360Q299 369 309 357"
+              fill="none" stroke="#b8733b" stroke-width="12"/>
+        <path d="M324 267Q337 258 349 260" fill="none" stroke="#f9d69a" stroke-width="6"/>
+
+        <g class="scarf-end">
+          <path d="M440 287C413 287 381 300 350 278L354 294L340 301
+                   C374 320 409 307 444 301Z" fill="#b95442" stroke="#794b36" stroke-width="2.5"/>
+          <path d="M357 291Q385 309 423 297" fill="none" stroke="#e18b65" stroke-width="3"/>
+        </g>
+        <path d="M435 293Q462 309 487 289L488 301Q465 319 437 307Z"
+              fill="#b95442" stroke="#794b36" stroke-width="2.5"/>
+
+        <!-- Broad cheeks, pointed ears, muzzle and whiskers. -->
+        <g id="cat-head">
+          <path d="M412 232L408 186Q408 178 416 183L449 206
+                   Q474 194 497 204L527 180Q533 177 534 185L535 233
+                   C549 249 550 272 535 288C517 309 470 313 441 297
+                   C416 285 404 259 412 232Z" fill="url(#fur-wash)" stroke="#734d34" stroke-width="3.5"/>
+          <path d="M418 197L422 227L440 214Z M520 194L505 212L525 225Z" fill="#cc876b"/>
+          <path d="M460 202L466 222M478 201L480 219M494 205L491 222"
+                fill="none" stroke="#ad6938" stroke-width="8"/>
+          <path d="M419 251L434 257M424 270L440 271" fill="none" stroke="#b8733b" stroke-width="7"/>
+          <path d="M474 259C481 250 494 252 503 263C514 250 535 254 537 267
+                   C543 290 518 300 500 292C478 297 461 277 474 259Z" fill="#fae3b6"/>
+          <path d="M447 241Q455 233 464 240M504 237Q513 230 522 237"
+                fill="none" stroke="#593f30" stroke-width="3.5"/>
+          <ellipse cx="457" cy="247" rx="4" ry="6" fill="#3d3f30"/>
+          <ellipse cx="515" cy="244" rx="4" ry="6" fill="#3d3f30"/>
+          <circle cx="458" cy="245" r="1.3" fill="#fff6df"/>
+          <circle cx="516" cy="242" r="1.3" fill="#fff6df"/>
+          <path d="M496 263Q503 259 510 263L504 269Q501 271 499 267Z" fill="#8a5143"/>
+          <path d="M503 269V275Q496 281 490 275M503 275Q510 281 516 274"
+                fill="none" stroke="#734d34" stroke-width="2.3"/>
+          <g fill="#ab7955">
+            <circle cx="481" cy="267" r="1.5"/><circle cx="486" cy="271" r="1.5"/>
+            <circle cx="522" cy="265" r="1.5"/><circle cx="526" cy="269" r="1.5"/>
+          </g>
+          <g fill="none" stroke="#734d34" stroke-width="2">
+            <path d="M480 270L445 264M480 277L446 282M527 268L559 257M529 276L563 278"/>
+          </g>
+        </g>
+
+        <path d="M464 313Q476 340 507 348L548 352" fill="none" stroke="#734d34" stroke-width="32"/>
+        <path d="M464 313Q476 340 507 348L548 352" fill="none" stroke="#e5a054" stroke-width="25"/>
+        <path d="M470 320Q479 337 494 340" fill="none" stroke="#f4c680" stroke-width="4"/>
+        <path d="M538 339Q549 334 559 341Q568 346 564 359Q561 367 550 363L539 359Z"
+              fill="#edb66b" stroke="#734d34" stroke-width="2.5"/>
+        <path d="M551 352V360M558 351L557 360" fill="none" stroke="#a06a40" stroke-width="2"/>
+        <circle cx="576" cy="345" r="7" fill="#e7bd6e" stroke="#425b4e" stroke-width="2"/>
+        <path d="M573 342L576 340" stroke="#fff1c9" stroke-width="2"/>
+
+        <!-- Each foot shares its pedal's exact circular translation. The broad
+             stationary thigh overlaps the moving shin at every crank angle. -->
+        <g id="near-pedal-and-leg" transform="translate(403 509)">
+          <g class="crank-spin">
+            <path d="M0 0H30" fill="none" stroke="#334d47" stroke-width="9"/>
+            <path d="M0 0H30" fill="none" stroke="#d9dbbc" stroke-width="4"/>
+            <g transform="translate(30 0)">
+              <g class="pedal-level">
+                <path d="M-54-98Q-48-58-6-12" fill="none" stroke="#734d34" stroke-width="33"/>
+                <path d="M-54-98Q-48-58-6-12" fill="none" stroke="#e3a054" stroke-width="26"/>
+                <path d="M-37-59L-27-62" stroke="#b8733b" stroke-width="7"/>
+                <rect x="-23" y="0" width="46" height="9" rx="3" fill="#344b46"/>
+                <path d="M-16 5H15" stroke="#d9d4b2" stroke-width="2"/>
+                <path d="M-18-4Q-23-21-9-24Q1-23 7-16Q24-17 24-6Q24 1 12 1H-9Z"
+                      fill="#f0ba70" stroke="#734d34" stroke-width="2.5"/>
+                <path d="M10-8L11-1M17-8L18-1" fill="none" stroke="#a06a40" stroke-width="2"/>
+              </g>
+            </g>
+          </g>
+          <circle r="6" fill="#f2dfb5" stroke="#334d47" stroke-width="2"/>
+        </g>
+        <path id="near-haunch" d="M314 379C325 350 366 352 384 377C399 396 395 424 378 439
+                 C364 452 342 452 328 441C306 423 300 400 314 379Z" fill="#e3a054"/>
+        <path d="M317 384C324 367 345 362 361 370" fill="none" stroke="#b77840" stroke-width="3"/>
+        <path d="M316 407Q325 418 339 417M326 428Q335 433 344 430"
+              fill="none" stroke="#bb793e" stroke-width="7"/>
+
+        <!-- A few quiet marks anchor the foreground without competing with the rider. -->
+        <g fill="none" stroke="#a49780" stroke-width="3">
+          <path d="M83 674H108M661 683H688M705 612H719M192 692H202"/>
+        </g>
+      </g>
+    </svg>
+  </main>
+</body>
+</html>

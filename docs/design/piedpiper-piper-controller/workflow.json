@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Pied Piper change workflow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": { "mode": "hidden" },
+    "viewBox": [1240, 714]
+  },
+  "lanes": [
+    { "id": "user", "label": "User" },
+    { "id": "piper", "label": "Piper" },
+    { "id": "worker", "label": "Workers" },
+    { "id": "review", "label": "Context + Review" },
+    { "id": "delivery", "label": "Delivery" }
+  ],
+  "phases": [
+    { "id": "intake", "label": "Choose + understand", "fromCol": 0, "toCol": 1 },
+    { "id": "work", "label": "Plan + execute", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "finish", "label": "Verify + deliver", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["request", "mode", "brief", "delegate", "worker-run", "integrate", "fresh-review", "delivery-gate"],
+  "nodes": [
+    { "id": "request", "lane": "user", "col": 0, "type": "external", "label": "Request", "sublabel": "goal" },
+    { "id": "mode", "lane": "piper", "col": 1, "type": "frontend", "label": "Mode", "width": 52, "height": 44 },
+    { "id": "brief", "lane": "piper", "col": 2, "type": "backend", "label": "Brief", "width": 52, "height": 44 },
+    { "id": "delegate", "lane": "piper", "col": 3, "type": "messagebus", "label": "Assign", "width": 52, "height": 44 },
+    { "id": "worker-run", "lane": "worker", "col": 3, "type": "backend", "label": "Worker", "sublabel": "own worktree" },
+    { "id": "integrate", "lane": "piper", "col": 4, "type": "backend", "label": "Merge", "width": 52, "height": 44 },
+    { "id": "graphify", "lane": "review", "col": 4, "type": "database", "label": "Graphify", "sublabel": "exact-head map" },
+    { "id": "fresh-review", "lane": "review", "col": 5, "type": "security", "label": "Review", "sublabel": "fresh Astra" },
+    { "id": "delivery-gate", "lane": "delivery", "col": 5, "type": "cloud", "label": "Deliver PR", "sublabel": "review state" }
+  ],
+  "edges": [
+    { "id": "request-mode", "from": "request", "to": "mode", "role": "main" },
+    { "id": "mode-brief", "from": "mode", "to": "brief", "role": "main", "variant": "emphasis" },
+    { "id": "brief-delegate", "from": "brief", "to": "delegate", "role": "main" },
+    { "id": "delegate-worker", "from": "delegate", "to": "worker-run", "role": "async", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "id": "worker-integrate", "from": "worker-run", "to": "integrate", "role": "return" },
+    { "id": "integrate-graph", "from": "integrate", "to": "graphify", "role": "async", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "id": "integrate-review", "from": "integrate", "to": "fresh-review", "role": "branch", "variant": "security" },
+    { "id": "graph-review", "from": "graphify", "to": "fresh-review", "role": "return", "variant": "dashed" },
+    { "id": "review-delivery", "from": "fresh-review", "to": "delivery-gate", "role": "return", "fromSide": "bottom", "toSide": "top", "route": "drop", "variant": "emphasis" }
+  ]
+}

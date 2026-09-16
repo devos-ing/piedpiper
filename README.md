@@ -6,18 +6,31 @@
 
 [English](README.md) · [繁體中文](README.zh-HK.md)
 
-Pied Piper is an interactive CLI built on Pi. The main coding agent plans, edits,
-runs checks, and can delegate independent research or implementation. It can
-automatically open a pull request when the change is ready. Independent review
-is optional: request it before delivery when useful. Requested review must pass,
-and unreviewed PRs are explicitly labeled. Only the user decides whether to merge.
+Pied Piper is a local, interactive coding CLI built on Pi. Piper keeps the user
+conversation, requirements, plan, and delivery state coherent. Piper is
+read-only: Workers are the only agents that author code, each inside a bounded
+scope and, for writers, an isolated Git worktree.
+
+```text
+You → choose one mode → Piper (Astra xhigh, read-only)
+                         ├─ plans and tracks the ChangeBrief
+                         ├─ delegates scoped Workers
+                         ├─ integrates results one at a time
+                         └─ optionally starts a fresh Reviewer
+                                      ↓
+                         verified or explicitly unreviewed PR
+```
+
+The controller pattern is inspired by Amp's Dial and Oracle. Pied Piper's
+implementation is different: the controller owns the main session, model pair,
+context packet, integration, and delivery boundary.
 
 ## Requirements
 
 - Node.js 22.19 or newer
 - Git and GitHub CLI
-- A model/provider configured through Pi
-- The target project's own build and test tools
+- The selected models authenticated and available through Pi
+- The target project's own build tools
 
 ## Start
 
@@ -26,57 +39,89 @@ npm install --global piedpiper
 piedpiper
 ```
 
-Pied Piper creates a dedicated `piedpiper/<change-id>` feature worktree, leaving the
-checkout where it was launched—including uncommitted files—unchanged. The TUI
-shows the resolved workspace, branch, Pi model, and Pied Piper status.
+An interactive start asks for a mode and initially selects `medium-sol`.
+Non-interactive creation must name it:
 
 ```bash
-piedpiper --base main
+piedpiper --mode medium-sol
+piedpiper --mode low --max-workers 2 --base main
 piedpiper --resume change-abc123def456
 ```
 
+Each change saves the resolved model pair and worker limit. Resume cannot change
+either; choose a new change when you want another mode. Missing credentials,
+models, or effective-route confirmation stops with a setup message. Pied Piper
+never silently falls back or escalates.
+
+| Mode | Piper | Worker |
+| --- | --- | --- |
+| `low` | GPT-6 Astra, `xhigh` | GPT-5.6 Terra, `low` |
+| `medium-sol` | GPT-6 Astra, `xhigh` | GPT-5.6 Sol, `medium` |
+| `high` | GPT-6 Astra, `xhigh` | GPT-6 Astra, `high` |
+
+Development-only Command Code provider routes are hidden behind
+`PIEDPIPER_EXPERIMENTAL_MODES=1`. Pi remains the only agent backend; normal
+onboarding does not install or configure experimental providers.
+
+## How work moves
+
+Pied Piper creates a dedicated `piedpiper/<change-id>` feature worktree, leaving
+the checkout where it was launched—including uncommitted files—unchanged.
+
+- Piper records a revisioned `ChangeBrief` and checklist.
+- A Worker receives `read` or `write` permission, a path scope, the current brief,
+  and relevant plan revision.
+- Two Workers may run by default, up to four. Overlapping write scopes queue.
+- Writer results are checked against their ownership scope and integrated
+  serially.
+- Delivery runs fixed verification check IDs, never model-supplied shell text.
+- Requested Review uses a fresh read-only Astra xhigh session and an immutable
+  packet bound to the brief, plan, base, exact head, complete diff, and evidence.
+- Skipped Review is recorded as unreviewed. Only the user decides whether to
+  merge.
+
+The current check IDs are `build`, `typecheck`, `biome`, and `git-whitespace`.
+They assume the repository uses the locked Bun/TypeScript/Biome toolchain used by
+Pied Piper; unsupported repositories stop rather than accepting a replacement
+shell command.
+
 Useful interactive commands:
 
-- `/plan` expands or collapses the saved checklist and its evidence notes.
-- `/agents` shows researcher and writer state.
-- `/agent-send <run-id> <message>` steers one active child.
-- `/agent-cancel <run-id>` cancels one child without restarting it.
-- Pi's native model, login, session, cancellation, and compaction commands remain available.
+- `/plan` expands or collapses the saved checklist and evidence notes.
+- `/agents` shows Worker and Reviewer state.
+- `/agent-send <run-id> <message>` steers one active Worker.
+- `/agent-cancel <run-id>` cancels one Worker without restarting it.
+- Pi's native login, session, cancellation, and compaction commands remain
+  available. The saved Pied Piper route remains authoritative.
 
-Research children are read-only. Writer children use independent worktrees and
-return verified commits for explicit integration. Pied Piper's normal agent command
-boundary rejects remote Git/GitHub mutations. Delivery alone may push and create
-or update a PR; it never calls merge or enables auto-merge.
+Outside a Git repository, Pied Piper keeps a durable Pi conversation but disables
+writer delegation and PR delivery. Delivery alone may push and create or update a
+PR after its safety checks; it never merges or enables auto-merge.
 
-Outside a Git repository, Pied Piper still provides a durable Pi conversation but
-disables writer delegation and PR delivery. If GitHub is unavailable, local work
-and state remain available for a later retry.
+## Context and optional Graphify
 
-## Checklist and progress
+The final Reviewer does not inherit the main transcript, private reasoning, full
+tool history, or unrelated child summaries. It receives a bounded ReviewPacket
+and can inspect the separately stored complete diff and source when needed.
 
-For multi-step work, the main agent maintains a checklist with `update_plan`.
-The native Pi widget shows completed counts, current and blocked steps, active
-children, recent tool activity, and delivery status. `/plan` shows all steps.
+Graphify is optional. When its CLI is already installed, Pied Piper asks once
+before the first full architecture index. It never installs Graphify. Updates run
+only in the main feature worktree before requested Review; missing, failed, or
+stale graph data is omitted and source-based review continues.
 
-The checklist supports up to 12 items and one current step. Completed items
-require an evidence note; blocked items require a reason. Notes are agent reports,
-not independent verification. The saved checklist returns when you resume and
-is included in each new main-agent turn after compaction. Tool activity stores
-names and status only, without duplicating arguments or outputs in task state.
-Checklist completion never counts as PR review approval.
+## Understand the architecture
 
-## Optional Oracle advice
+Start with the two interactive views:
 
-Keep choosing the main coding model with Pi's native model controls. Configure a separate Oracle for a change:
+- [Piper architecture map](docs/design/piedpiper-piper-controller/architecture.html)
+- [Change workflow](docs/design/piedpiper-piper-controller/workflow.html)
 
-```bash
-piedpiper --oracle-model openai-codex/gpt-6-astra
-piedpiper --resume change-abc123def456 --oracle-model openai-codex/gpt-6-astra
-```
-
-Use an exact authenticated `provider/model` from Pi. The selection persists with the change; resuming without the flag keeps it. Explicitly changing it affects new consultations, while existing runs keep their recorded selection. The Oracle must confirm that model and `high` effort before receiving a prompt. No silent fallback is used. A configured Oracle is also used for requested final reviews; without one, existing review model defaults remain.
-
-Ask the main agent to consult Oracle for a specific planning, debugging, or review question. `ask_oracle` returns a run ID and brief status. Its read-only advice arrives once in the main conversation. `agent_wait` observes that same run for up to 60 seconds; expiry keeps it running. Use `/agent-cancel <run-id>` to cancel explicitly. Advice does not count as independent publication approval.
+Then use [the architecture guide](docs/architecture.md) for component ownership,
+[the approved design](docs/design/piedpiper-piper-controller.md) for rationale,
+and [the specification](docs/specs/piedpiper-piper-controller.md) for exact
+requirements. The pre-implementation code graph is available as an
+[interactive Graphify graph](graphify-out/graph.html) and
+[text report](graphify-out/GRAPH_REPORT.md).
 
 ## Development
 
@@ -84,22 +129,13 @@ Ask the main agent to consult Oracle for a specific planning, debugging, or revi
 bun install --frozen-lockfile
 bun run build
 bun run typecheck
-bun test
 ```
 
 Pied Piper is implemented in TypeScript. npm packages contain the compiled
-`dist/piedpiper` Node.js runtime rather than executable TypeScript source.
-`openamp` has no executable alias.
-
-The design and milestone evidence are in
-[`docs/design/openamp-cli`](docs/design/openamp-cli/README.md). OpenAmp remains the
-working name for this interactive architecture. The previous Roc Issue backlog
-and daemon sources remain in repository history, but are not part of the Pied
-Piper package or executable surface.
-
-Existing `.openamp` change state is retained. On resume, Pied Piper validates
-the legacy record and copies active session data into the new state and session
-paths. It leaves legacy files unchanged.
+`dist/piedpiper` Node.js runtime. `openamp` has no executable alias. Matching
+legacy `.openamp` change state remains readable through an explicit migration;
+legacy files are left unchanged.
 
 Product history: [CHANGELOG.md](CHANGELOG.md).
+
 License: [Apache 2.0](LICENSE).

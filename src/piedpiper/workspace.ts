@@ -18,6 +18,7 @@ import {
   resolve,
 } from "node:path";
 import { runGit } from "./command.js";
+import { resolveMode } from "./modes.js";
 import {
   type ChangeState,
   ChangeStore,
@@ -40,6 +41,50 @@ export interface AgentWorkspace {
   path: string;
   branch: string;
   baseCommit: string;
+  scope: string[];
+}
+
+/** Normalizes bounded relative ownership paths and marks repository-wide work exclusive. */
+export function normalizeScope(scope: string[]): string[] {
+  if (!Array.isArray(scope) || scope.length === 0 || scope.length > 64) {
+    throw new Error("Delegation requires one to 64 bounded relative paths");
+  }
+  const normalized = scope.map((entry) => {
+    if (
+      typeof entry !== "string" ||
+      !entry.trim() ||
+      isAbsolute(entry) ||
+      entry.split(/[\\/]/u).includes("..")
+    ) {
+      throw new Error("Delegation scope must contain safe relative paths");
+    }
+    const value = entry.replaceAll("\\", "/").replace(/^\.\/+/u, "");
+    return value || "*";
+  });
+  if (normalized.includes("*")) return ["*"];
+  return [...new Set(normalized)];
+}
+
+/** Returns whether two normalized ownership scopes cannot run concurrently. */
+export function scopesOverlap(left: string[], right: string[]): boolean {
+  if (left.includes("*") || right.includes("*")) return true;
+  return left.some(
+    (candidate) =>
+      right.includes(candidate) ||
+      right.some(
+        (other) =>
+          other.startsWith(`${candidate}/`) ||
+          candidate.startsWith(`${other}/`),
+      ),
+  );
+}
+
+/** Returns whether one Git path belongs to a normalized ownership scope. */
+function pathBelongsToScope(path: string, scope: string[]): boolean {
+  return (
+    scope.includes("*") ||
+    scope.some((owned) => path === owned || path.startsWith(`${owned}/`))
+  );
 }
 
 /** Returns whether a path exists without following its value into application logic. */
@@ -331,7 +376,8 @@ async function reconcilePendingIntegration(state: ChangeState): Promise<void> {
       status: "integrated",
       head: currentHead,
     };
-    state.review = null;
+    state.reviewStatus =
+      state.reviewStatus === "not_requested" ? "not_requested" : "stale";
     state.phase = "active";
     return;
   }
@@ -362,6 +408,7 @@ function reconcilePendingPublicationLedger(state: ChangeState): void {
 export async function resumeChange(
   cwd: string,
   id: string,
+  options: { mode?: string; workerConcurrency?: number } = {},
 ): Promise<ChangeStore> {
   if (!CHANGE_ID.test(id))
     throw new Error(`Invalid Pied Piper change ID: ${id}`);
@@ -400,18 +447,32 @@ export async function resumeChange(
     }
   }
   if (!selected) throw new Error(`Pied Piper change not found: ${id}`);
-  const state = await readChange(selected.path);
+  const state = await readChange(selected.path, options);
   if (state.id !== id) {
     throw new Error(`Pied Piper change ID does not match: ${selected.path}`);
+  }
+  if (options.mode !== undefined && options.mode !== state.mode) {
+    throw new Error(
+      `Pied Piper change is pinned to mode "${state.mode}"; resume cannot use "${options.mode}"`,
+    );
+  }
+  if (
+    options.workerConcurrency !== undefined &&
+    options.workerConcurrency !== state.workerConcurrency
+  ) {
+    throw new Error(
+      `Pied Piper change is pinned to ${state.workerConcurrency} workers; resume cannot use ${options.workerConcurrency}`,
+    );
   }
   if (!(await exists(state.workspace))) {
     throw new Error(`Pied Piper workspace is missing: ${state.workspace}`);
   }
   if (state.repoRoot) {
     const actual = await repositoryIdentity(state.workspace);
+    const actualWorkspace = await realpath(state.workspace);
     if (
       !actual ||
-      actual.repoRoot !== state.repoRoot ||
+      actual.repoRoot !== actualWorkspace ||
       actual.commonDir !== state.commonDir
     ) {
       throw new Error("Pied Piper workspace belongs to a different repository");
@@ -448,13 +509,28 @@ export async function resumeChange(
 /** Creates a dedicated feature workspace while preserving the source checkout untouched. */
 export async function createChange(
   cwd: string,
-  options: { id?: string; base?: string; observationPack?: boolean } = {},
+  options: {
+    id?: string;
+    base?: string;
+    observationPack?: boolean;
+    mode?: string;
+    workerConcurrency?: number;
+  } = {},
 ): Promise<ChangeStore> {
   const id = options.id ?? `change-${crypto.randomUUID().slice(0, 12)}`;
   if (!CHANGE_ID.test(id))
     throw new Error(`Invalid Pied Piper change ID: ${id}`);
   const identity = await repositoryIdentity(cwd);
   const now = new Date().toISOString();
+  const mode = resolveMode(options.mode);
+  const workerConcurrency = options.workerConcurrency ?? 2;
+  if (
+    !Number.isSafeInteger(workerConcurrency) ||
+    workerConcurrency < 1 ||
+    workerConcurrency > 4
+  ) {
+    throw new Error("Pied Piper worker concurrency must be between 1 and 4");
+  }
   if (!identity) {
     const path = globalStatePath(id);
     const state: ChangeState = {
@@ -473,6 +549,20 @@ export async function createChange(
       sessionId: null,
       sessionFile: null,
       observationPack: options.observationPack === true,
+      mode: mode.mode,
+      piperRoute: mode.piper,
+      workerRoute: mode.worker,
+      requestedSettings: { piper: mode.piper, worker: mode.worker },
+      effectiveSettings: { piper: null, worker: null },
+      brief: {
+        revision: 0,
+        goal: "",
+        acceptanceCriteria: [],
+        nonGoals: [],
+        decisions: [],
+      },
+      workerConcurrency,
+      reviewStatus: "not_requested",
       inputGeneration: 0,
       phase: "conversation",
       runs: {},
@@ -519,6 +609,20 @@ export async function createChange(
     sessionId: null,
     sessionFile: null,
     observationPack: options.observationPack === true,
+    mode: mode.mode,
+    piperRoute: mode.piper,
+    workerRoute: mode.worker,
+    requestedSettings: { piper: mode.piper, worker: mode.worker },
+    effectiveSettings: { piper: null, worker: null },
+    brief: {
+      revision: 0,
+      goal: "",
+      acceptanceCriteria: [],
+      nonGoals: [],
+      decisions: [],
+    },
+    workerConcurrency,
+    reviewStatus: "not_requested",
     inputGeneration: 0,
     phase: "active",
     runs: {},
@@ -534,6 +638,8 @@ export async function createChange(
 
 /** Owns local Git mutations for one Pied Piper feature workspace. */
 export class ChangeWorkspace {
+  #deliveryActive = false;
+  #integrationTail: Promise<void> = Promise.resolve();
   readonly store: ChangeStore;
 
   /** Binds workspace operations to a durable change store. */
@@ -567,20 +673,25 @@ export class ChangeWorkspace {
     const head = await this.head();
     await this.store.update((state) => {
       state.mainHead = head;
-      state.review = null;
+      state.reviewStatus =
+        state.reviewStatus === "not_requested" ? "not_requested" : "stale";
     });
     return head;
   }
 
   /** Creates a writer worktree from a clean, recorded feature checkpoint. */
-  async createAgentWorkspace(runId: string): Promise<AgentWorkspace> {
+  async createAgentWorkspace(
+    runId: string,
+    scope: string[],
+  ): Promise<AgentWorkspace> {
     if (!this.store.state.repoRoot) {
       throw new Error(
         "Writing delegation is unavailable outside a Git repository",
       );
     }
-    const baseCommit = await this.checkpoint();
+    const baseCommit = await this.assertReady();
     if (!baseCommit) throw new Error("Writer workspace requires a Git head");
+    const normalizedScope = normalizeScope(scope);
     const root = `${this.store.state.repoRoot}.piedpiper-agents`;
     const path = join(root, this.store.state.id, runId);
     const branch = `piedpiper-agent/${this.store.state.id}/${runId}`;
@@ -593,7 +704,62 @@ export class ChangeWorkspace {
       path,
       baseCommit,
     ]);
-    return { path, branch, baseCommit };
+    return { path, branch, baseCommit, scope: normalizedScope };
+  }
+
+  /** Validates every single-parent result commit against its complete no-rename path set. */
+  async #validatedCommits(
+    baseCommit: string,
+    head: string,
+    scope: string[],
+  ): Promise<string[]> {
+    const commits = (
+      await runGit(this.store.state.workspace, [
+        "rev-list",
+        "--reverse",
+        `${baseCommit}..${head}`,
+      ])
+    ).stdout
+      .split("\n")
+      .filter(Boolean);
+    for (const commit of commits) {
+      const ancestry = (
+        await runGit(this.store.state.workspace, [
+          "rev-list",
+          "--parents",
+          "-n",
+          "1",
+          commit,
+        ])
+      ).stdout.split(/\s+/u);
+      if (ancestry.length !== 2 || ancestry[0] !== commit) {
+        throw new Error(
+          "Agent results must contain only single-parent commits",
+        );
+      }
+      const parent = ancestry[1];
+      if (!parent) {
+        throw new Error("Agent result commit is missing its parent");
+      }
+      const paths = (
+        await runGit(this.store.state.workspace, [
+          "diff",
+          "--name-only",
+          "--no-renames",
+          "-z",
+          parent,
+          commit,
+        ])
+      ).stdout
+        .split("\0")
+        .filter(Boolean);
+      if (paths.some((path) => !pathBelongsToScope(path, scope))) {
+        throw new Error(
+          "Agent result changed paths outside its ownership scope",
+        );
+      }
+    }
+    return commits;
   }
 
   /** Commits a writer's pending changes and validates its exact branch result. */
@@ -628,11 +794,49 @@ export class ChangeWorkspace {
     ) {
       throw new Error("Agent result worktree is not clean");
     }
-    return { ...workspace, head, changed: head !== workspace.baseCommit };
+    const commits = await this.#validatedCommits(
+      workspace.baseCommit,
+      head,
+      workspace.scope,
+    );
+    return { ...workspace, head, changed: commits.length > 0 };
   }
 
   /** Integrates one verified result exactly once and records uncertain conflicts without replay. */
   async integrate(resultId: string): Promise<string | null> {
+    if (this.#deliveryActive) {
+      throw new Error("Result integration is unavailable during Delivery");
+    }
+    const operation = this.#integrationTail.then(() =>
+      this.#integrateOne(resultId),
+    );
+    this.#integrationTail = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }
+
+  /** Waits for prior integrations and reserves the feature workspace for Delivery. */
+  async beginDelivery(): Promise<void> {
+    if (this.#deliveryActive) {
+      throw new Error("Delivery already owns the feature workspace");
+    }
+    while (true) {
+      const observed = this.#integrationTail;
+      await observed;
+      if (observed === this.#integrationTail) break;
+    }
+    this.#deliveryActive = true;
+  }
+
+  /** Releases the feature workspace after Delivery settles. */
+  endDelivery(): void {
+    this.#deliveryActive = false;
+  }
+
+  /** Integrates one result after all earlier integration operations settle. */
+  async #integrateOne(resultId: string): Promise<string | null> {
     const state = this.store.state;
     if (state.integratedResultIds.includes(resultId)) return await this.head();
     const result = state.results[resultId];
@@ -646,15 +850,13 @@ export class ChangeWorkspace {
     await this.store.update((draft) => {
       draft.integration = { resultId, expectedHead, status: "pending" };
     });
-    const commits = (
-      await runGit(state.workspace, [
-        "rev-list",
-        "--reverse",
-        `${result.baseCommit}..${result.commit}`,
-      ])
-    ).stdout
-      .split("\n")
-      .filter(Boolean);
+    const run = state.runs[result.runId];
+    if (!run) throw new Error(`Result run is missing: ${result.runId}`);
+    const commits = await this.#validatedCommits(
+      result.baseCommit,
+      result.commit,
+      run.scope,
+    );
     if (commits.length === 0)
       throw new Error("Agent result contains no commits");
     const current = await this.head();
@@ -686,7 +888,8 @@ export class ChangeWorkspace {
         status: "integrated",
         head,
       };
-      draft.review = null;
+      draft.reviewStatus =
+        draft.reviewStatus === "not_requested" ? "not_requested" : "stale";
       draft.phase = "active";
     });
     return head;

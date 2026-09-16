@@ -1,12 +1,20 @@
 import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, parse, resolve } from "node:path";
+import { type ChangeBrief, parseChangeBrief } from "./brief.js";
+import {
+  type PiedPiperMode,
+  type RouteSnapshot,
+  resolveMode,
+  validateModeSnapshot,
+  validateRouteSnapshot,
+} from "./modes.js";
 import {
   parseActivity,
   parseTaskPlan,
   reconcileToolActivity,
 } from "./progress.js";
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 export type AgentRole = "researcher" | "writer" | "reviewer" | "oracle";
 export type RunStatus =
@@ -33,6 +41,12 @@ export interface AgentRun {
   sessionId: string | null;
   model: string | null;
   effort: string | null;
+  permission: "read" | "write";
+  scope: string[];
+  briefRevision: number;
+  planRevision: number;
+  route: RouteSnapshot;
+  effectiveRoute: RouteSnapshot | null;
   resultId: string | null;
   requestedModel?: string;
   requestedEffort?: "high";
@@ -112,7 +126,34 @@ export interface ChangeState {
   sessionId: string | null;
   sessionFile: string | null;
   observationPack: boolean;
-  oracleModel?: string;
+  mode: PiedPiperMode;
+  piperRoute: RouteSnapshot;
+  workerRoute: RouteSnapshot;
+  requestedSettings: {
+    piper: RouteSnapshot;
+    worker: RouteSnapshot;
+  };
+  effectiveSettings: {
+    piper: RouteSnapshot | null;
+    worker: RouteSnapshot | null;
+  };
+  brief: ChangeBrief;
+  workerConcurrency: number;
+  reviewStatus:
+    | "not_requested"
+    | "requested"
+    | "accepted"
+    | "rejected"
+    | "unreviewed"
+    | "stale";
+  graphify?: {
+    choice: "enabled" | "declined" | "cancelled";
+    revision?: string;
+    graphPath?: string;
+    graphHash?: string;
+    reportPath?: string;
+    reportHash?: string;
+  };
   plan?: TaskPlan;
   activity?: ToolActivity;
   inputGeneration: number;
@@ -125,9 +166,19 @@ export interface ChangeState {
         head: string;
         base: string;
         specHash: string;
+        requirementsHash?: string;
         inputGeneration: number;
+        briefRevision: number;
+        planRevision: number;
+        packetDigest?: string;
       })
     | null;
+  reviewPacket?: {
+    path: string;
+    digest: string;
+    diffPath: string;
+    diffDigest: string;
+  };
   publication: {
     status: "pending" | "published" | "cancelled" | "reconcile_required";
     repository?: string | null;
@@ -137,6 +188,12 @@ export interface ChangeState {
     head?: string;
     specHash?: string;
     inputGeneration?: number;
+    briefRevision?: number;
+    planRevision?: number;
+    reviewStatus?: "accepted" | "unreviewed";
+    packetDigest?: string;
+    packetPath?: string;
+    diffPath?: string;
     pullRequestNumber?: number | null;
     pullRequestUrl?: string | null;
   } | null;
@@ -150,8 +207,132 @@ export interface ChangeState {
   };
   validation?: {
     head: string;
-    commands: Array<{ command: string; exitCode: number; output: string }>;
+    checks: Array<{ id: string; exitCode: number; output: string }>;
   };
+}
+
+/** Returns the empty brief used while a migrated v1 change awaits reconciliation. */
+function emptyBrief(): ChangeBrief {
+  return {
+    revision: 0,
+    goal: "",
+    acceptanceCriteria: [],
+    nonGoals: [],
+    decisions: [],
+  };
+}
+
+/** Recovers a legacy run route only when its recorded model and effort are complete. */
+function recordedLegacyRoute(run: AgentRun): RouteSnapshot | undefined {
+  const selected = run.requestedModel ?? run.model;
+  const effort = run.requestedEffort ?? run.effort;
+  if (!selected || !effort) return undefined;
+  const slash = selected.indexOf("/");
+  if (slash < 1 || slash === selected.length - 1) return undefined;
+  try {
+    return validateRouteSnapshot({
+      provider: selected.slice(0, slash),
+      model: selected.slice(slash + 1),
+      effort,
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+/** Converts a legacy v1 record into an interrupted v2 record without inventing intent. */
+function migrateLegacyState(
+  value: Record<string, unknown>,
+  path: string,
+  modeName?: string,
+): ChangeState {
+  if (!modeName) {
+    throw new Error(
+      `Pied Piper setup required: legacy change ${path} needs one explicit --mode before resume`,
+    );
+  }
+  const resolved = resolveMode(modeName);
+  const state = {
+    ...value,
+    version: STATE_VERSION,
+    mode: resolved.mode,
+    piperRoute: resolved.piper,
+    workerRoute: resolved.worker,
+    requestedSettings: { piper: resolved.piper, worker: resolved.worker },
+    effectiveSettings: { piper: null, worker: null },
+    brief: emptyBrief(),
+    workerConcurrency: 2,
+    reviewStatus: value.review ? "stale" : "not_requested",
+    phase: "needs_replan",
+  } as unknown as ChangeState;
+  for (const run of Object.values(state.runs)) {
+    const recordedRoute = recordedLegacyRoute(run);
+    if (!run.route) run.route = recordedRoute ?? resolved.worker;
+    if (!run.permission)
+      run.permission = run.role === "writer" ? "write" : "read";
+    if (!run.scope) run.scope = ["*"];
+    if (run.briefRevision === undefined) run.briefRevision = 0;
+    if (run.planRevision === undefined)
+      run.planRevision = state.plan?.revision ?? 0;
+    if (run.effectiveRoute === undefined) run.effectiveRoute = null;
+    if (["queued", "starting", "running", "cancelling"].includes(run.status)) {
+      run.status = "interrupted";
+      run.finishedAt = new Date().toISOString();
+      run.failure = recordedRoute
+        ? "Legacy work was interrupted for explicit brief reconciliation"
+        : "Legacy work was interrupted because its exact route was not recorded";
+    }
+  }
+  if (state.review) {
+    state.review.requirementsHash ??= state.review.specHash;
+    state.review.briefRevision ??= 0;
+    state.review.planRevision ??= state.plan?.revision ?? 0;
+  }
+  return state;
+}
+
+/** Validates the durable v2 controller fields before they reach runtime code. */
+function validateControllerState(state: ChangeState, path: string): void {
+  validateModeSnapshot(
+    { mode: state.mode, piper: state.piperRoute, worker: state.workerRoute },
+    process.env,
+  );
+  validateRouteSnapshot(state.requestedSettings.piper);
+  validateRouteSnapshot(state.requestedSettings.worker);
+  if (state.effectiveSettings.piper) {
+    validateRouteSnapshot(state.effectiveSettings.piper);
+  }
+  if (state.effectiveSettings.worker) {
+    validateRouteSnapshot(state.effectiveSettings.worker);
+  }
+  if (
+    !Number.isSafeInteger(state.workerConcurrency) ||
+    state.workerConcurrency < 1 ||
+    state.workerConcurrency > 4 ||
+    !state.brief ||
+    (state.graphify !== undefined &&
+      !["enabled", "declined", "cancelled"].includes(state.graphify.choice)) ||
+    ![
+      "not_requested",
+      "requested",
+      "accepted",
+      "rejected",
+      "unreviewed",
+      "stale",
+    ].includes(state.reviewStatus)
+  ) {
+    throw new Error(`Invalid Pied Piper controller state: ${path}`);
+  }
+  for (const run of Object.values(state.runs)) {
+    validateRouteSnapshot(run.route);
+    if (run.effectiveRoute) validateRouteSnapshot(run.effectiveRoute);
+    if (
+      (run.permission !== "read" && run.permission !== "write") ||
+      !Array.isArray(run.scope)
+    ) {
+      throw new Error(`Invalid Pied Piper controller state: ${path}`);
+    }
+  }
 }
 
 /** Returns whether an unknown JSON value is an object record. */
@@ -219,12 +400,14 @@ export async function writeJsonAtomic(
 }
 
 /** Loads and minimally validates one versioned Pied Piper change record. */
-export async function readChange(path: string): Promise<ChangeState> {
+export async function readChange(
+  path: string,
+  options: { mode?: string } = {},
+): Promise<ChangeState> {
   await assertSafeTarget(path);
   const value: unknown = JSON.parse(await readFile(path, "utf8"));
   if (
     !isRecord(value) ||
-    value.version !== STATE_VERSION ||
     typeof value.id !== "string" ||
     typeof value.workspace !== "string" ||
     !isRecord(value.runs) ||
@@ -232,10 +415,19 @@ export async function readChange(path: string): Promise<ChangeState> {
   ) {
     throw new Error(`Invalid Pied Piper change state: ${path}`);
   }
-  if (value.plan !== undefined) value.plan = parseTaskPlan(value.plan);
-  if (value.activity !== undefined)
-    value.activity = parseActivity(value.activity);
-  return value as unknown as ChangeState;
+  const migrated =
+    value.version === 1
+      ? migrateLegacyState(value, path, options.mode)
+      : value.version === STATE_VERSION
+        ? (value as unknown as ChangeState)
+        : undefined;
+  if (!migrated) throw new Error(`Invalid Pied Piper change state: ${path}`);
+  validateControllerState(migrated, path);
+  migrated.brief = parseChangeBrief(migrated.brief);
+  if (migrated.plan !== undefined) migrated.plan = parseTaskPlan(migrated.plan);
+  if (migrated.activity !== undefined)
+    migrated.activity = parseActivity(migrated.activity);
+  return migrated;
 }
 
 /** Serializes state updates so one process remains the sole metadata writer. */

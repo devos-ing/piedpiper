@@ -5,18 +5,20 @@ import {
   isToolCallEventType,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { remoteMutationReason } from "./command.js";
+import { briefContext, updateChangeBrief } from "./brief.js";
 import type { ChangeDelivery } from "./delivery.js";
 import {
   MAX_PLAN_ITEMS,
   planContext,
   progressLines,
   progressText,
+  roleLabel,
   updateTaskPlan,
 } from "./progress.js";
 import type { AgentResult, ChangeState, ChangeStore } from "./state.js";
 import type { AgentSupervisor } from "./supervisor.js";
-import type { ChangeWorkspace } from "./workspace.js";
+import { VERIFICATION_CHECK_IDS } from "./verification.js";
+import { type ChangeWorkspace, normalizeScope } from "./workspace.js";
 
 /** Formats durable child state for both the TUI widget and model tool result. */
 function agentLines(supervisor: AgentSupervisor): string[] {
@@ -25,7 +27,7 @@ function agentLines(supervisor: AgentSupervisor): string[] {
     ? ["No child agents"]
     : runs.map(
         (run) =>
-          `${run.id}  ${run.role}  ${run.status}${run.model ? `  ${run.model}:${run.effort ?? "default"}` : ""}`,
+          `${run.id}  ${roleLabel(run.role)}  ${run.status}${run.model ? `  ${run.model}:${run.effort ?? "default"}` : ""}`,
       );
 }
 
@@ -67,6 +69,54 @@ export function createPiedPiperExtension(
       const pendingDeliveries = new Set<string>();
       let mainBusy = false;
       let planExpanded = false;
+
+      /** Aborts the active turn and shuts down Pi before an unconfirmed route can dispatch. */
+      function stopForRouteMismatch(
+        context: ExtensionContext,
+        message: string,
+      ): never {
+        context.abort();
+        context.ui.notify(message, "error");
+        context.shutdown();
+        throw new Error(message);
+      }
+
+      /** Re-pins and confirms the saved Piper route before a session can prompt. */
+      async function enforcePiperRoute(
+        context: ExtensionContext,
+      ): Promise<void> {
+        const expected = store.state.piperRoute;
+        const model = context.modelRegistry
+          .getAvailable()
+          .find(
+            (candidate) =>
+              candidate.provider === expected.provider &&
+              candidate.id === expected.model,
+          );
+        if (!model) {
+          stopForRouteMismatch(
+            context,
+            `Pied Piper setup required for ${expected.provider}/${expected.model}: the saved Piper model is unavailable`,
+          );
+        }
+        if (
+          context.model?.provider !== expected.provider ||
+          context.model.id !== expected.model
+        ) {
+          if (!(await pi.setModel(model))) {
+            stopForRouteMismatch(
+              context,
+              `Pied Piper setup required for ${expected.provider}/${expected.model}: Pi could not restore the saved route`,
+            );
+          }
+        }
+        if (
+          expected.effort !== "default" &&
+          context.thinkingLevel !== expected.effort
+        ) {
+          pi.setThinkingLevel(expected.effort);
+        }
+      }
 
       /** Returns bounded status for the same owned child and cancels only on an explicit abort. */
       async function waitForChild(
@@ -187,16 +237,9 @@ export function createPiedPiperExtension(
             {
               customType: "piedpiper-result",
               content: [
-                `Pied Piper child result ${result.id} from ${result.runId} (${result.role}).`,
+                `Pied Piper ${roleLabel(result.role)} result ${result.id} from ${result.runId}.`,
                 run.model
                   ? `Model: ${run.model}; effort: ${run.effort ?? "default"}.`
-                  : "",
-                result.role === "oracle"
-                  ? "Oracle advice is not a publication approval; verify it against the current code."
-                  : "",
-                result.role === "oracle" &&
-                run.inputGeneration !== store.state.inputGeneration
-                  ? "The parent received new input after this consultation started; the advice may be stale."
                   : "",
                 result.commit
                   ? `Verified result commit: ${result.commit}`
@@ -228,6 +271,7 @@ export function createPiedPiperExtension(
 
       pi.on("session_start", async (_event, context) => {
         currentContext = context;
+        await enforcePiperRoute(context);
         mainBusy = false;
         planExpanded = false;
         pendingDeliveries.clear();
@@ -261,7 +305,7 @@ export function createPiedPiperExtension(
           `Pied Piper ${store.state.id}`,
           `workspace: ${store.state.workspace}`,
           `branch: ${store.state.branch ?? "none (conversation only)"}`,
-          `Oracle: ${store.state.oracleModel ? `${store.state.oracleModel} · high` : "not configured (optional)"}`,
+          `Mode: ${store.state.mode} · Piper ${store.state.piperRoute.model}:${store.state.piperRoute.effort} · Worker ${store.state.workerRoute.model}:${store.state.workerRoute.effort}`,
           store.state.repoRoot
             ? `PR target: ${store.state.baseBranch ?? "unavailable"}`
             : "Git unavailable: writer agents and PR delivery are disabled",
@@ -270,6 +314,23 @@ export function createPiedPiperExtension(
         for (const result of Object.values(store.state.results)) {
           if (!store.state.runs[result.runId]?.deliveryOnly)
             await deliverResult(result, context, false);
+        }
+      });
+
+      pi.on("model_select", async (event, context) => {
+        const expected = store.state.piperRoute;
+        if (
+          event.model.provider !== expected.provider ||
+          event.model.id !== expected.model
+        ) {
+          await enforcePiperRoute(context);
+        }
+      });
+
+      pi.on("thinking_level_select", async (event, context) => {
+        const expected = store.state.piperRoute;
+        if (expected.effort !== "default" && event.level !== expected.effort) {
+          await enforcePiperRoute(context);
         }
       });
 
@@ -345,22 +406,26 @@ export function createPiedPiperExtension(
         return undefined;
       });
 
-      pi.on("before_agent_start", (event) => ({
-        systemPrompt: [
-          event.systemPrompt,
-          `You are the main coding agent for Pied Piper change ${store.state.id}.`,
-          `Work only in ${store.state.workspace}.`,
-          "For multi-step work, maintain a short checklist with update_plan. Use stable step IDs and the current expected_revision; only one step may be in progress. Completed steps need concrete evidence in note, and blocked steps need a reason. Use agent_status to refresh a stale revision. Checklist completion is reported progress, not validation or publication approval. Do not create a checklist for a simple question.",
-          planContext(store.state),
-          "Plan, edit code, run checks, and apply fixes in this main thread. Delegate independent work only when useful. Research agents are read-only; delegated writers use isolated worktrees.",
-          "Use ask_oracle for a focused second opinion on difficult planning, debugging, tradeoffs, or review. Oracle use is optional; you remain responsible for edits and checking its advice. If it is still running, use agent_wait on the returned ID rather than starting another consultation. Advice arrives once as a Pied Piper result message and never grants publication approval.",
-          "Use integrate_result for selected writer results. Never push, create/modify/merge a PR, or call GitHub mutation APIs.",
-          "When the requested modifying work is complete, call deliver_change with exact current requirements and validation commands. Delivery validates and opens or updates the PR; independent review is optional. Set review=true only when review is requested. Only the user merges.",
-        ].join("\n"),
-      }));
+      pi.on("before_agent_start", async (event, context) => {
+        await enforcePiperRoute(context);
+        return {
+          systemPrompt: [
+            event.systemPrompt,
+            `You are Piper, the read-only controller for Pied Piper change ${store.state.id}.`,
+            `Inspect only ${store.state.workspace}; Piper cannot author source files.`,
+            "For multi-step work, maintain a short checklist with update_plan. Use stable step IDs and the current expected_revision; only one step may be in progress. Completed steps need concrete evidence in note, and blocked steps need a reason. Use agent_status to refresh a stale revision. Checklist completion is reported progress, not validation or publication approval. Do not create a checklist for a simple question.",
+            planContext(store.state),
+            "Piper coordinates the ChangeBrief, plan, Worker assignments, result integration, verification, independent Review, and delivery. Delegate bounded read or write work with an explicit scope.",
+            "Workers author changes only in their assigned workspaces. Use agent_wait, agent_steer, and agent_cancel to manage existing Workers.",
+            "Use integrate_result for selected Worker results. Never edit files, run bash, push, create or modify a PR, or call GitHub mutation APIs from Piper.",
+            "When the requested modifying work is complete, call deliver_change with exact current requirements and fixed verification check IDs. Delivery verifies and opens or updates the PR; independent review is optional. Set review=true only when requested. Only the user merges.",
+          ].join("\n"),
+        };
+      });
 
       pi.on("input", async (event) => {
         if (event.source === "extension") return undefined;
+        if (currentContext) await enforcePiperRoute(currentContext);
         store.state.inputGeneration = (store.state.inputGeneration ?? 0) + 1;
         await store.update(() => undefined);
         return undefined;
@@ -368,22 +433,23 @@ export function createPiedPiperExtension(
 
       pi.on("tool_call", (event) => {
         if (!isToolCallEventType("bash", event)) return undefined;
-        const reason = remoteMutationReason(event.input.command);
-        return reason ? { block: true, reason } : undefined;
+        return {
+          block: true,
+          reason:
+            "Piper is read-only; delegate shell work to a write-permitted Worker",
+        };
       });
 
-      pi.on("user_bash", (event) => {
-        const reason = remoteMutationReason(event.command);
-        return reason
-          ? {
-              result: {
-                output: reason,
-                exitCode: 1,
-                cancelled: false,
-                truncated: false,
-              },
-            }
-          : undefined;
+      pi.on("user_bash", (_event) => {
+        return {
+          result: {
+            output:
+              "Piper is read-only; delegate shell work to a write-permitted Worker",
+            exitCode: 1,
+            cancelled: false,
+            truncated: false,
+          },
+        };
       });
 
       pi.registerTool({
@@ -422,40 +488,41 @@ export function createPiedPiperExtension(
       });
 
       pi.registerTool({
-        name: "ask_oracle",
-        label: "Ask Oracle",
+        name: "update_brief",
+        label: "Update ChangeBrief",
         description:
-          "Consult the configured read-only high-effort Oracle and return its existing run status; advice arrives in a result message",
+          "Update the revisioned ChangeBrief only when expected_revision matches the durable current revision",
         parameters: Type.Object({
-          question: Type.String({ minLength: 1, maxLength: 4000 }),
-          context: Type.Optional(Type.String({ maxLength: 16000 })),
+          expected_revision: Type.Integer({ minimum: 0 }),
+          goal: Type.String({ maxLength: 4000 }),
+          acceptance_criteria: Type.Array(
+            Type.String({ minLength: 1, maxLength: 1000 }),
+            { maxItems: 32 },
+          ),
+          non_goals: Type.Array(
+            Type.String({ minLength: 1, maxLength: 1000 }),
+            { maxItems: 32 },
+          ),
+          decisions: Type.Array(
+            Type.String({ minLength: 1, maxLength: 1000 }),
+            { maxItems: 32 },
+          ),
         }),
-        execute: async (_id, parameters, signal, _onUpdate, context) => {
-          if (signal?.aborted)
-            throw new Error("Oracle request cancelled before launch");
-          if (!parameters.question.trim())
-            throw new Error("Oracle question must not be empty");
-          const selected = store.state.oracleModel;
-          if (!selected)
-            throw new Error(
-              "Configure --oracle-model <provider/model> to enable Oracle advice",
-            );
-          const model = context.modelRegistry
-            .getAvailable()
-            .find((item) => `${item.provider}/${item.id}` === selected);
-          if (!model?.reasoning)
-            throw new Error(
-              "The selected Oracle must be an authenticated Pi reasoning model; no fallback was selected",
-            );
-          const run = await supervisor.delegate({
-            role: "oracle",
-            prompt: [parameters.question.trim(), parameters.context ?? ""]
-              .filter(Boolean)
-              .join("\n\nRelevant context:\n"),
-            parentSessionId: context.sessionManager.getSessionId(),
-          });
-          refreshStatus(context);
-          return waitForChild(run.id, 1000, signal, context);
+        execute: async (_id, parameters) => {
+          const brief = await updateChangeBrief(
+            store,
+            parameters.expected_revision,
+            {
+              goal: parameters.goal,
+              acceptanceCriteria: parameters.acceptance_criteria,
+              nonGoals: parameters.non_goals,
+              decisions: parameters.decisions,
+            },
+          );
+          return {
+            content: [{ type: "text", text: briefContext(brief) }],
+            details: { revision: brief.revision },
+          };
         },
       });
 
@@ -481,20 +548,23 @@ export function createPiedPiperExtension(
         name: "delegate",
         label: "Delegate",
         description:
-          "Start a bounded researcher or isolated writer Pi child agent",
+          "Start a bounded Worker with explicit read or write permission and ownership scope",
         promptGuidelines: [
           "Use delegate only when a focused child assignment improves speed or independence; children cannot delegate.",
         ],
         parameters: Type.Object({
-          role: Type.Union([
-            Type.Literal("researcher"),
-            Type.Literal("writer"),
-          ]),
+          permission: Type.Union([Type.Literal("read"), Type.Literal("write")]),
           prompt: Type.String({ minLength: 1 }),
+          scope: Type.Array(Type.String({ minLength: 1, maxLength: 200 }), {
+            minItems: 1,
+            maxItems: 64,
+          }),
         }),
         execute: async (_id, parameters) => {
           const run = await supervisor.delegate({
-            ...parameters,
+            permission: parameters.permission,
+            scope: normalizeScope(parameters.scope),
+            prompt: parameters.prompt,
             parentSessionId: store.state.sessionId,
           });
           refreshStatus(currentContext);
@@ -520,13 +590,57 @@ export function createPiedPiperExtension(
           content: [
             {
               type: "text",
-              text: [planContext(store.state), ...agentLines(supervisor)].join(
-                "\n",
-              ),
+              text: [
+                briefContext(store.state.brief),
+                planContext(store.state),
+                ...agentLines(supervisor),
+              ].join("\n"),
             },
           ],
           details: {},
         }),
+      });
+
+      pi.registerTool({
+        name: "agent_steer",
+        label: "Steer Worker",
+        description: "Send one bounded steering message to an active Worker",
+        parameters: Type.Object({
+          run_id: Type.String({ minLength: 1, maxLength: 80 }),
+          message: Type.String({ minLength: 1, maxLength: 2000 }),
+        }),
+        execute: async (_id, parameters) => {
+          await supervisor.send(parameters.run_id, parameters.message);
+          return {
+            content: [
+              { type: "text", text: `Steering sent to ${parameters.run_id}` },
+            ],
+            details: { runId: parameters.run_id },
+          };
+        },
+      });
+
+      pi.registerTool({
+        name: "agent_cancel",
+        label: "Cancel Worker",
+        description:
+          "Cancel one queued or active Worker and retain its durable cleanup state",
+        parameters: Type.Object({
+          run_id: Type.String({ minLength: 1, maxLength: 80 }),
+        }),
+        execute: async (_id, parameters) => {
+          await supervisor.cancel(parameters.run_id);
+          refreshStatus(currentContext);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Cancellation requested for ${parameters.run_id}`,
+              },
+            ],
+            details: { runId: parameters.run_id },
+          };
+        },
       });
 
       pi.registerTool({
@@ -564,9 +678,10 @@ export function createPiedPiperExtension(
                 "Request a fresh independent review before publishing; defaults to false",
             }),
           ),
-          validation_commands: Type.Array(Type.String({ minLength: 1 }), {
-            minItems: 1,
-          }),
+          verification_checks: Type.Array(
+            Type.Union(VERIFICATION_CHECK_IDS.map((id) => Type.Literal(id))),
+            { minItems: 1, maxItems: VERIFICATION_CHECK_IDS.length },
+          ),
         }),
         execute: async (_id, parameters, signal) => {
           const pullRequest = await delivery.deliver(
@@ -574,7 +689,7 @@ export function createPiedPiperExtension(
               title: parameters.title,
               review: parameters.review ?? false,
               requirements: parameters.requirements,
-              validationCommands: parameters.validation_commands,
+              verificationCheckIds: parameters.verification_checks,
               inputGeneration: store.state.inputGeneration ?? 0,
             },
             signal,

@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   getAgentDir,
@@ -5,12 +6,19 @@ import {
   type RpcClientOptions,
   type RpcSessionState,
 } from "@earendil-works/pi-coding-agent";
+import { briefContext } from "./brief.js";
 import { agentEnvironment } from "./command.js";
+import type { RouteSnapshot } from "./modes.js";
 import {
   OBSERVATION_PACK_TOOL,
   validateObservationPackRuntime,
 } from "./observation-pack.js";
 import { progressText } from "./progress.js";
+import {
+  assertEffectiveRoute,
+  readSessionRoute,
+  routeStartupOptions,
+} from "./routes.js";
 import type {
   AgentResult,
   AgentRole,
@@ -21,6 +29,8 @@ import type {
 import {
   type AgentWorkspace,
   type ChangeWorkspace,
+  normalizeScope,
+  scopesOverlap,
   sessionDirectory,
 } from "./workspace.js";
 
@@ -43,6 +53,7 @@ interface ChildClient {
   steer(message: string): Promise<unknown>;
   abort(): Promise<unknown>;
   stop(): Promise<unknown>;
+  waitForExit?(timeoutMs: number): Promise<unknown>;
   onEvent?(
     listener: (event: {
       type: string;
@@ -52,40 +63,79 @@ interface ChildClient {
   ): () => void;
 }
 
+/** Captures the spawned process handle before RpcClient.stop clears its private field. */
+function childProcessHandle(client: ChildClient): ChildProcess | undefined {
+  return (
+    (client as unknown as { process?: ChildProcess | null }).process ??
+    undefined
+  );
+}
+
+/** Requires an exit event after stop so capacity is never released on SIGKILL send alone. */
+async function confirmChildExit(
+  client: ChildClient,
+  processHandle: ChildProcess | undefined,
+  timeoutMs = 5_000,
+): Promise<void> {
+  if (client.waitForExit) {
+    await client.waitForExit(timeoutMs);
+    return;
+  }
+  if (!processHandle) {
+    throw new Error("Child cleanup cannot confirm process termination");
+  }
+  if (processHandle.exitCode !== null || processHandle.signalCode !== null)
+    return;
+  await new Promise<void>((resolve, reject) => {
+    /** Removes process listeners after exit confirmation or timeout. */
+    const cleanup = () => {
+      clearTimeout(timer);
+      processHandle.off("exit", onExit);
+      processHandle.off("error", onError);
+    };
+    /** Resolves after the child emits its terminal exit event. */
+    const onExit = () => {
+      cleanup();
+      resolve();
+    };
+    /** Rejects when the child process reports an error instead of a confirmed exit. */
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("Child process termination was not confirmed"));
+    }, timeoutMs);
+    processHandle.once("exit", onExit);
+    processHandle.once("error", onError);
+  });
+}
+
 export interface SupervisorOptions {
   maxActive?: number;
   clientFactory?: (options: RpcClientOptions) => ChildClient;
   agentDir?: string;
 }
 
-/** Splits an explicit Pi provider/model selection without accepting CLI-like values. */
-export function parseOracleModel(value: string): {
-  provider: string;
-  id: string;
-} {
-  const slash = value.indexOf("/");
-  const provider = value.slice(0, slash);
-  const id = value.slice(slash + 1);
-  if (
-    slash < 1 ||
-    !/^[a-zA-Z0-9_.-]+$/u.test(provider) ||
-    provider.startsWith("-") ||
-    !id ||
-    id.startsWith("-") ||
-    /\s/u.test(id)
-  ) {
-    throw new Error(
-      "Oracle model must be an exact Pi provider/model identifier",
-    );
-  }
-  return { provider, id };
-}
-
 export interface DelegateInput {
-  role: AgentRole;
+  permission: "read" | "write";
+  scope: string[];
   prompt: string;
   parentSessionId?: string | null;
   deliveryOnly?: boolean;
+  role?: AgentRole;
+  route?: RouteSnapshot;
+}
+
+/** Returns whether two admitted runs must not overlap. */
+function scopesConflict(
+  left: Pick<AgentRun, "permission" | "scope">,
+  right: Pick<AgentRun, "permission" | "scope">,
+): boolean {
+  if (left.scope.includes("*") || right.scope.includes("*")) return true;
+  if (left.permission !== "write" && right.permission !== "write") return false;
+  return scopesOverlap(left.scope, right.scope);
 }
 
 /** Returns the required durable run for an already-admitted child. */
@@ -140,6 +190,7 @@ export class AgentSupervisor {
   #deliveryHandler?: (result: AgentResult) => Promise<void> | void;
   #draining?: Promise<void>;
   #admitting: Promise<unknown> = Promise.resolve();
+  #reservations = new Set<string>();
   #closing = false;
 
   readonly store: ChangeStore;
@@ -156,7 +207,11 @@ export class AgentSupervisor {
   ) {
     this.store = store;
     this.workspace = workspace;
-    this.maxActive = options.maxActive ?? 2;
+    const maxActive = options.maxActive ?? store.state.workerConcurrency;
+    if (!Number.isSafeInteger(maxActive) || maxActive < 1 || maxActive > 4) {
+      throw new Error("Pied Piper worker concurrency must be between 1 and 4");
+    }
+    this.maxActive = maxActive;
     this.agentDir = options.agentDir ?? getAgentDir();
     this.clientFactory =
       options.clientFactory ??
@@ -186,34 +241,43 @@ export class AgentSupervisor {
     const admission = this.#admitting.then(async () => {
       if (this.#closing)
         throw new Error("Pied Piper supervisor is shutting down");
-      if (
-        !["researcher", "writer", "reviewer", "oracle"].includes(input.role)
-      ) {
-        throw new Error(`Unsupported agent role: ${input.role}`);
+      const role =
+        input.role ?? (input.permission === "write" ? "writer" : "researcher");
+      if (!["researcher", "writer", "reviewer"].includes(role)) {
+        throw new Error(`Unsupported worker role: ${role}`);
       }
-      if (input.role === "writer" && !this.store.state.repoRoot) {
+      if (role === "writer" && !this.store.state.repoRoot) {
         throw new Error(
           "Writer agents are unavailable outside a Git repository",
         );
       }
-      const requestedModel = ["oracle", "reviewer"].includes(input.role)
-        ? this.store.state.oracleModel
-        : undefined;
-      if (input.role === "oracle" && !requestedModel) {
-        throw new Error(
-          "Configure an Oracle with --oracle-model <provider/model> before asking it for advice",
-        );
-      }
-      if (requestedModel) parseOracleModel(requestedModel);
+      const scope = normalizeScope(input.scope);
+      const route = input.route ?? this.store.state.workerRoute;
+      const briefRevision = this.store.state.brief.revision;
+      const planRevision = this.store.state.plan?.revision ?? 0;
+      const prompt = [
+        briefContext(this.store.state.brief),
+        `Plan revision ${planRevision}`,
+        `Owned scope: ${scope.join(", ")}`,
+        "",
+        "Assignment:",
+        boundedText(input.prompt, 40_000),
+      ].join("\n");
+      const activeRuns = this.list().filter((candidate) =>
+        this.#reservations.has(candidate.id),
+      );
       const runId = `run-${crypto.randomUUID().slice(0, 12)}`;
-      const active = this.list().filter((candidate) =>
-        ["starting", "running", "cancelling"].includes(candidate.status),
-      ).length;
       const run: AgentRun = {
         id: runId,
-        role: input.role,
-        prompt: boundedText(input.prompt, 40_000),
-        status: active >= this.maxActive ? "queued" : "starting",
+        role,
+        prompt,
+        status:
+          activeRuns.length >= this.maxActive ||
+          activeRuns.some((candidate) =>
+            scopesConflict(candidate, { permission: input.permission, scope }),
+          )
+            ? "queued"
+            : "starting",
         parentSessionId: input.parentSessionId ?? this.store.state.sessionId,
         deliveryOnly: input.deliveryOnly === true,
         createdAt: new Date().toISOString(),
@@ -223,16 +287,22 @@ export class AgentSupervisor {
         sessionId: null,
         model: null,
         effort: null,
+        permission: input.permission,
+        scope,
+        briefRevision,
+        planRevision,
+        route: { ...route },
+        effectiveRoute: null,
         resultId: null,
-        ...(requestedModel
-          ? { requestedModel, requestedEffort: "high" as const }
-          : {}),
         inputGeneration: this.store.state.inputGeneration,
       };
       await this.store.update((state) => {
         state.runs[runId] = run;
       });
-      if (run.status !== "queued") void this.#launch(runId);
+      if (run.status !== "queued") {
+        this.#reservations.add(runId);
+        void this.#launch(runId);
+      }
       return run;
     });
     this.#admitting = admission.catch(() => undefined);
@@ -281,7 +351,10 @@ export class AgentSupervisor {
         const current = requireRun(state, runId);
         current.status = "cancelled";
         current.finishedAt = new Date().toISOString();
+        state.phase = "needs_replan";
       });
+      this.#reservations.delete(runId);
+      await this.#drainQueue();
       return;
     }
     if (!client) throw new Error(`Agent is not cancellable: ${runId}`);
@@ -290,7 +363,9 @@ export class AgentSupervisor {
     });
     await client.abort().catch(() => undefined);
     try {
+      const processHandle = childProcessHandle(client);
       await client.stop();
+      await confirmChildExit(client, processHandle);
     } catch {
       await this.store.update((state) => {
         requireRun(state, runId).failure =
@@ -300,10 +375,12 @@ export class AgentSupervisor {
       throw new Error("Child cancellation could not confirm cleanup");
     }
     this.#clients.delete(runId);
+    this.#reservations.delete(runId);
     await this.store.update((state) => {
       const current = requireRun(state, runId);
       current.status = "cancelled";
       current.finishedAt = new Date().toISOString();
+      state.phase = "needs_replan";
     });
     await this.#drainQueue();
   }
@@ -334,7 +411,10 @@ export class AgentSupervisor {
     signal?: AbortSignal,
   ): Promise<AgentResult> {
     const run = await this.delegate({
+      permission: "read",
+      scope: ["*"],
       role: "reviewer",
+      route: this.store.state.piperRoute,
       prompt,
       parentSessionId,
       deliveryOnly: true,
@@ -416,33 +496,24 @@ export class AgentSupervisor {
     try {
       agentWorkspace =
         run.role === "writer"
-          ? await this.workspace.createAgentWorkspace(runId)
+          ? await this.workspace.createAgentWorkspace(runId, run.scope)
           : { path: this.store.state.workspace };
       if (this.store.state.runs[runId]?.status === "cancelled") return;
       const observationPack = this.store.state.observationPack === true;
       if (observationPack) await validateObservationPackRuntime();
-      if (run.role === "oracle" && !run.requestedModel) {
-        throw new Error("Oracle run is missing its recorded model selection");
-      }
-      const route = run.requestedModel
-        ? parseOracleModel(run.requestedModel)
-        : undefined;
-      if (route && run.requestedEffort !== "high") {
-        throw new Error(
-          "Recorded Oracle route must retain high reasoning effort",
-        );
-      }
+      const startup = routeStartupOptions(run.route);
       client = this.clientFactory({
         cwd: agentWorkspace.path,
         env: { ...agentEnvironment(), PI_CODING_AGENT_DIR: this.agentDir },
-        ...(route ? { provider: route.provider, model: route.id } : {}),
+        provider: startup.provider,
+        model: startup.model,
         args: [
           ...childArgsForRole(
             run.role,
             observationPack,
             sessionDirectory(this.store.state, true),
           ),
-          ...(run.requestedEffort ? ["--thinking", run.requestedEffort] : []),
+          ...startup.args,
         ],
       });
       this.#clients.set(runId, client);
@@ -450,18 +521,8 @@ export class AgentSupervisor {
       if (this.#isCancelling(runId)) return;
       const rpcState = await client.getState();
       if (this.#isCancelling(runId)) return;
-      const effectiveModel = rpcState.model
-        ? `${rpcState.model.provider}/${rpcState.model.id}`
-        : null;
-      if (
-        run.requestedModel &&
-        (effectiveModel !== run.requestedModel ||
-          rpcState.thinkingLevel !== run.requestedEffort)
-      ) {
-        throw new Error(
-          "Pi did not confirm the requested Oracle model and high reasoning effort; no prompt was sent",
-        );
-      }
+      const effectiveRoute = readSessionRoute(rpcState);
+      assertEffectiveRoute(run.route, effectiveRoute);
       await this.store.update((state) => {
         Object.assign(requireRun(state, runId), {
           status: "running",
@@ -469,19 +530,23 @@ export class AgentSupervisor {
           cwd: agentWorkspace.path,
           sessionId: rpcState.sessionId,
           sessionFile: rpcState.sessionFile,
-          model: rpcState.model
-            ? `${rpcState.model.provider}/${rpcState.model.id}`
+          model: effectiveRoute
+            ? `${effectiveRoute.provider}/${effectiveRoute.model}`
             : null,
-          effort: rpcState.thinkingLevel ?? null,
+          effort: effectiveRoute?.effort ?? null,
+          effectiveRoute,
         });
+        if (run.role !== "reviewer" && effectiveRoute) {
+          state.effectiveSettings.worker = { ...effectiveRoute };
+        }
       });
       if (this.#isCancelling(runId)) return;
       const roleConstraint =
-        run.role === "writer"
+        run.permission === "write"
           ? "Modify only this dedicated worktree. Do not push, publish, merge, or delegate. Leave a coherent working tree; Pied Piper will create the result commit."
-          : run.role === "oracle"
-            ? "You are a read-only Oracle adviser. Analyze the specific question, inspect relevant code, and return concise advice with evidence and caveats. Do not edit, run shell commands, publish, merge, or delegate. Your answer is advice, not permission to publish."
-            : "This is a read-only assignment. Use only read/search tools. Do not modify files, publish, merge, or delegate.";
+          : run.role === "reviewer"
+            ? "You are an independent read-only Reviewer. Inspect the supplied change and return bounded findings. Do not modify files, publish, merge, or delegate."
+            : "This is a read-only Worker assignment. Use only read/search tools. Do not modify files, publish, merge, or delegate.";
       unsubscribe = client.onEvent?.((event) => {
         if (event.type === "agent_start") started = true;
         if (event.type === "agent_settled") settled = true;
@@ -538,10 +603,12 @@ export class AgentSupervisor {
       }
       if (this.#isCancelling(runId)) return;
       const summary = boundedText(await client.getLastAssistantText());
-      if (run.role === "oracle" && !summary.trim())
-        throw new Error("Oracle returned no advice");
+      if (run.role === "reviewer" && !summary.trim())
+        throw new Error("Reviewer returned no findings");
       if (this.#isCancelling(runId)) return;
+      const processHandle = childProcessHandle(client);
       await client.stop();
+      await confirmChildExit(client, processHandle);
       stopped = true;
       if (this.#isCancelling(runId)) return;
       const finalized =
@@ -592,7 +659,9 @@ export class AgentSupervisor {
       unsubscribe?.();
       if (client && !stopped) {
         try {
+          const processHandle = childProcessHandle(client);
           await client.stop();
+          await confirmChildExit(client, processHandle);
           stopped = true;
         } catch {
           await this.store.update((state) => {
@@ -606,6 +675,7 @@ export class AgentSupervisor {
       }
       if (!client || stopped) {
         this.#clients.delete(runId);
+        this.#reservations.delete(runId);
         await this.#drainQueue();
       }
     }
@@ -615,20 +685,27 @@ export class AgentSupervisor {
   async #drainQueue(): Promise<void> {
     if (this.#closing) return;
     if (this.#draining) return this.#draining;
-    this.#draining = (async () => {
-      while (
-        this.list().filter((run) =>
-          ["starting", "running", "cancelling"].includes(run.status),
-        ).length < this.maxActive
-      ) {
-        const next = this.list().find((run) => run.status === "queued");
+    const drain = this.#admitting.then(async () => {
+      while (true) {
+        const active = this.list().filter((run) =>
+          this.#reservations.has(run.id),
+        );
+        if (active.length >= this.maxActive) return;
+        const next = this.list().find(
+          (run) =>
+            run.status === "queued" &&
+            active.every((candidate) => !scopesConflict(candidate, run)),
+        );
         if (!next) return;
         await this.store.update((state) => {
           requireRun(state, next.id).status = "starting";
         });
+        this.#reservations.add(next.id);
         void this.#launch(next.id);
       }
-    })().finally(() => {
+    });
+    this.#admitting = drain.catch(() => undefined);
+    this.#draining = drain.finally(() => {
       this.#draining = undefined;
     });
     return this.#draining;

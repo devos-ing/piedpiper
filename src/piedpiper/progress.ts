@@ -1,5 +1,6 @@
 import { stripVTControlCharacters } from "node:util";
 import type {
+  AgentRole,
   ChangeState,
   ChangeStore,
   ChecklistItem,
@@ -14,6 +15,18 @@ const marks = {
   blocked: "[!]",
   completed: "[x]",
 };
+
+/** Converts durable child roles into the current user-facing role labels. */
+export function roleLabel(role: AgentRole): "Worker" | "Reviewer" {
+  return role === "reviewer" || role === "oracle" ? "Reviewer" : "Worker";
+}
+
+/** Converts durable activity owners into the current user-facing labels. */
+function ownerLabel(
+  owner: ToolActivity["owner"],
+): "Piper" | "Worker" | "Reviewer" {
+  return owner === "main" ? "Piper" : roleLabel(owner);
+}
 
 /** Settles a dangling child tool status from its own run without changing newer activity. */
 export function reconcileToolActivity(state: ChangeState): void {
@@ -174,6 +187,8 @@ export async function updateTaskPlan(
         "Checklist changed; read the current revision before updating it",
       );
     state.plan = next;
+    state.reviewStatus =
+      state.reviewStatus === "not_requested" ? "not_requested" : "stale";
   });
   return next;
 }
@@ -191,7 +206,7 @@ export function progressLines(
     ? items
     : (pending.length ? pending : items).slice(0, 3);
   const lines = [
-    `Plan ${done}/${items.length} done · r${state.plan?.revision ?? 0} · Main ${mainBusy ? "working" : "idle"}`,
+    `Brief r${state.brief.revision} · Plan ${done}/${items.length} done · r${state.plan?.revision ?? 0} · Piper ${mainBusy ? "working" : "idle"}`,
   ];
   if (!items.length)
     lines.push("No checklist yet. Use one for multi-step work.");
@@ -207,7 +222,7 @@ export function progressLines(
   );
   for (const run of active.slice(0, 2))
     lines.push(
-      `${run.role}: ${run.status} · ${progressText(run.model ?? run.requestedModel ?? run.id, 100)}`,
+      `${roleLabel(run.role)}: ${run.status} · ${progressText(run.model ?? run.id, 100)}`,
     );
   const failures = Object.values(state.runs).filter(
     (run) =>
@@ -222,19 +237,26 @@ export function progressLines(
     );
   if (state.activity)
     lines.push(
-      `Last: ${state.activity.owner} · ${state.activity.tool} · ${state.activity.status}`,
+      `Last: ${ownerLabel(state.activity.owner)} · ${state.activity.tool} · ${state.activity.status}`,
     );
   const activeReviewer = active.find((run) => run.role === "reviewer");
   if (activeReviewer) {
-    lines.push(`Final review: requested · reviewer ${activeReviewer.status}`);
+    lines.push(`Final review: requested · Reviewer ${activeReviewer.status}`);
   } else if (state.review) {
     const current =
+      state.reviewStatus !== "stale" &&
       state.review.head === state.mainHead &&
       state.review.base === state.baseCommit &&
-      state.review.inputGeneration === state.inputGeneration;
+      state.review.inputGeneration === state.inputGeneration &&
+      state.review.briefRevision === state.brief.revision &&
+      state.review.planRevision === (state.plan?.revision ?? 0);
     lines.push(
       `Final review: ${current ? "" : "stale "}${state.review.decision} · reviewed ${progressText(state.review.head, 7)}`,
     );
+  } else if (state.reviewStatus === "unreviewed") {
+    lines.push("Final review: explicitly unreviewed");
+  } else if (state.reviewStatus === "requested") {
+    lines.push("Final review: requested");
   } else {
     lines.push("Final review: not requested");
   }

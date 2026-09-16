@@ -1,0 +1,9 @@
+{
+  "diagram_type": "workflow",
+  "output": "workflow.html",
+  "specification_sha256": "fc5b5ffc15cb7fb20d398108ba6f2bbacbed2c308f1cbf2e765d530059fa6f61",
+  "artifact_sha256": "3ba8cdfdfd09ffc671df1d6fafa25fe241e5ab37b3bc0288465a909232106a9f",
+  "validation": "9/9 showcase, 0 errors, 0 warnings",
+  "visual_review": "passed",
+  "correction_rounds": 2
+}

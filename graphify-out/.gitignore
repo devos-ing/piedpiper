@@ -1,0 +1,5 @@
+cache/
+manifest.json
+.graphify_analysis.json
+.graphify_labels.json
+.graphify_root

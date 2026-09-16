@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isCancel, multiselect } from "@clack/prompts";
+import { confirm, isCancel, multiselect, select } from "@clack/prompts";
 import {
   type AgentSessionRuntime,
   type CreateAgentSessionRuntimeFactory,
@@ -17,16 +17,24 @@ import { agentEnvironment } from "./command.js";
 import { ChangeDelivery, type DeliveryOptions } from "./delivery.js";
 import { createPiedPiperExtension } from "./extension.js";
 import {
+  type GraphifyRunner,
+  graphifyAvailable,
+  initializeGraphify,
+} from "./graphify.js";
+import { availableModes } from "./modes.js";
+import {
   createPiedPiperObservationPackExtension,
   OBSERVATION_PACK_TOOL,
   validateObservationPackRuntime,
 } from "./observation-pack.js";
-import type { ChangeStore } from "./state.js";
 import {
-  AgentSupervisor,
-  parseOracleModel,
-  type SupervisorOptions,
-} from "./supervisor.js";
+  assertEffectiveRoute,
+  assertRouteAvailable,
+  lockPiperSessionRoute,
+  readSessionRoute,
+} from "./routes.js";
+import type { ChangeStore } from "./state.js";
+import { AgentSupervisor, type SupervisorOptions } from "./supervisor.js";
 import {
   ChangeWorkspace,
   createChange,
@@ -37,7 +45,8 @@ import {
 interface ParsedArguments {
   resume?: string;
   base?: string;
-  oracleModel?: string;
+  mode?: string;
+  maxWorkers?: number;
   plugins: boolean;
   observationPack?: boolean;
   help: boolean;
@@ -54,6 +63,9 @@ export interface RunPiedPiperOptions {
   supervisorOptions?: SupervisorOptions;
   deliveryOptions?: DeliveryOptions;
   InteractiveMode?: InteractiveModeConstructor;
+  selectMode?: () => Promise<string | undefined>;
+  selectGraphify?: () => Promise<boolean | undefined>;
+  graphifyRunner?: GraphifyRunner;
   selectPlugins?: (
     initialObservationPack: boolean,
   ) => Promise<boolean | undefined>;
@@ -68,16 +80,21 @@ export function parseArguments(args: string[]): ParsedArguments {
     else if (
       argument === "--resume" ||
       argument === "--base" ||
-      argument === "--oracle-model"
+      argument === "--mode" ||
+      argument === "--max-workers"
     ) {
       const value = args[++index];
       if (!value || value.startsWith("-"))
         throw new Error(`${argument} requires a value`);
       if (argument === "--resume") options.resume = value;
       else if (argument === "--base") options.base = value;
+      else if (argument === "--mode") options.mode = value;
       else {
-        parseOracleModel(value);
-        options.oracleModel = value;
+        const workers = Number(value);
+        if (!Number.isSafeInteger(workers) || workers < 1 || workers > 4) {
+          throw new Error("--max-workers must be an integer between 1 and 4");
+        }
+        options.maxWorkers = workers;
       }
     } else if (argument === "--plugins") options.plugins = true;
     else if (argument === "--observation-pack") options.observationPack = true;
@@ -102,9 +119,9 @@ export function helpText(): string {
     "Pied Piper - interactive Pi agent collaboration",
     "",
     "Usage:",
-    "  piedpiper [--base <ref>] [--observation-pack|--no-observation-pack]",
-    "  piedpiper --resume <change-id> [--plugins]",
-    "  piedpiper --oracle-model <provider/model>",
+    "  piedpiper --mode <low|medium-sol|high> [--max-workers <1-4>]",
+    "           [--base <ref>] [--observation-pack|--no-observation-pack]",
+    "  piedpiper --resume <change-id> [--mode <saved-mode>] [--max-workers <saved-count>]",
     "",
     "Pied Piper creates a dedicated feature worktree, keeps Pi sessions durable,",
     "delegates through /agents, and opens validated pull requests without merging.",
@@ -134,6 +151,31 @@ async function selectPlugins(
   return selected.includes(OBSERVATION_PACK_TOOL);
 }
 
+/** Presents the normal-mode picker and returns the selected immutable mode. */
+async function selectMode(): Promise<string | undefined> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return undefined;
+  const selected = await select({
+    message: "Pied Piper mode",
+    options: availableModes().map((mode) => ({
+      value: mode,
+      label: mode,
+      hint: mode === "medium-sol" ? "default" : undefined,
+    })),
+    initialValue: "medium-sol",
+  });
+  if (isCancel(selected)) return undefined;
+  return selected;
+}
+
+/** Asks once before the optional first full Graphify build. */
+async function selectGraphify(): Promise<boolean | undefined> {
+  const selected = await confirm({
+    message: "Build an optional Graphify architecture index for this change?",
+    initialValue: false,
+  });
+  return isCancel(selected) ? undefined : selected;
+}
+
 /** Returns the explicit main-session tool allowlist for an optional plugin choice. */
 export function mainSessionTools(observationPack: boolean): string[] {
   return [
@@ -141,13 +183,12 @@ export function mainSessionTools(observationPack: boolean): string[] {
     "grep",
     "find",
     "ls",
-    "bash",
-    "edit",
-    "write",
     "delegate",
-    "ask_oracle",
     "agent_wait",
+    "agent_steer",
+    "agent_cancel",
     "update_plan",
+    "update_brief",
     "agent_status",
     "integrate_result",
     "deliver_change",
@@ -166,9 +207,23 @@ export async function runPiedPiper(
     return 0;
   }
   const cwd = options.cwd ?? process.cwd();
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  let selectedMode = parsed.mode;
+  if (!parsed.resume && !selectedMode) {
+    if (!interactive) {
+      throw new Error(
+        "Pied Piper setup required: non-interactive creation requires --mode",
+      );
+    }
+    selectedMode = await (options.selectMode ?? selectMode)();
+    if (!selectedMode) throw new Error("Pied Piper mode selection cancelled");
+  }
   let store: ChangeStore;
   if (parsed.resume) {
-    store = await resumeChange(cwd, parsed.resume);
+    store = await resumeChange(cwd, parsed.resume, {
+      mode: parsed.mode,
+      workerConcurrency: parsed.maxWorkers,
+    });
     const selection =
       parsed.observationPack ??
       (parsed.plugins
@@ -194,12 +249,36 @@ export async function runPiedPiper(
     store = await createChange(cwd, {
       base: parsed.base,
       observationPack: selection,
+      mode: selectedMode,
+      workerConcurrency: parsed.maxWorkers ?? 2,
     });
   }
-  if (parsed.oracleModel !== undefined) {
+  if (
+    store.state.graphify === undefined &&
+    interactive &&
+    (await graphifyAvailable(
+      store.state.workspace,
+      options.graphifyRunner,
+      process.env,
+    ))
+  ) {
+    const enabled = await (options.selectGraphify ?? selectGraphify)();
     await store.update((state) => {
-      state.oracleModel = parsed.oracleModel;
+      state.graphify = {
+        choice:
+          enabled === undefined
+            ? "cancelled"
+            : enabled
+              ? "enabled"
+              : "declined",
+      };
     });
+  }
+  if (
+    store.state.graphify?.choice === "enabled" &&
+    !store.state.graphify.graphHash
+  ) {
+    await initializeGraphify(store, options.graphifyRunner, process.env);
   }
   const observationPack = store.state.observationPack === true;
   if (observationPack) await validateObservationPackRuntime();
@@ -261,16 +340,40 @@ export async function runPiedPiper(
         ],
       },
     });
-    return {
+    /** Resolves the saved Piper model before creating the session. */
+    const available = await services.modelRuntime.getAvailable();
+    assertRouteAvailable(
+      store.state.piperRoute,
+      available.map((model) => ({ provider: model.provider, id: model.id })),
+    );
+    const model = available.find(
+      (candidate) =>
+        candidate.provider === store.state.piperRoute.provider &&
+        candidate.id === store.state.piperRoute.model,
+    );
+    if (!model) {
+      throw new Error(
+        `Pied Piper setup required for ${store.state.piperRoute.provider}/${store.state.piperRoute.model}: the model is unavailable or unauthenticated; no fallback was selected`,
+      );
+    }
+    const thinkingLevel =
+      store.state.piperRoute.effort === "default"
+        ? undefined
+        : store.state.piperRoute.effort;
+    const createdRuntime = {
       ...(await createAgentSessionFromServices({
         services,
         sessionManager: manager,
         sessionStartEvent,
+        model,
+        thinkingLevel,
         tools: mainSessionTools(observationPack),
       })),
       services,
       diagnostics: services.diagnostics,
     };
+    await lockPiperSessionRoute(createdRuntime, store.state.piperRoute);
+    return createdRuntime;
   };
   let runtime: AgentSessionRuntime | undefined;
   try {
@@ -281,6 +384,13 @@ export async function runPiedPiper(
       sessionManager,
     });
     runtime = activeRuntime;
+    const effectivePiperRoute = readSessionRoute(activeRuntime.session);
+    assertEffectiveRoute(store.state.piperRoute, effectivePiperRoute);
+    await store.update((state) => {
+      state.effectiveSettings.piper = effectivePiperRoute
+        ? { ...effectivePiperRoute }
+        : null;
+    });
     await store.update((state) => {
       state.sessionId = activeRuntime.session.sessionId;
       state.sessionFile = activeRuntime.session.sessionFile ?? null;

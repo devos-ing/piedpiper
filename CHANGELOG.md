@@ -17,6 +17,11 @@ Pied Piper is the public name for that system. Pi runs the agent loop. The Piper
 keeps implementation threads visible and guides them toward the result the user
 chose. The name now matches the product better than either earlier name.
 
+The next step separated control from authorship. Piper became a strong read-only
+controller, while scoped Workers became the only agents that write code. Each
+change now remembers one model pair, one revisioned brief, and the exact evidence
+used for an optional fresh Review.
+
 The first logo draft looked too mechanical. The active logo is a rounded Pi
 character playing a small flute, with three thread ribbons following behind it.
 
@@ -26,6 +31,16 @@ character playing a small flute, with three thread ribbons following behind it.
 - Added the cute Pi piper avatar to the English and Traditional Chinese READMEs.
 - Updated current CLI messages, progress displays, errors, documentation, and
   contributor guidance to use the Pied Piper name.
+- Added immutable `low`, `medium-sol`, and `high` Piper/Worker model modes with
+  exact Pi route readback and no silent fallback or escalation.
+- Made Piper read-only and added scoped read/write Workers, bounded concurrency,
+  serial integration, steering, cancellation, and retained prior Review findings.
+- Replaced model-supplied validation shell strings with fixed verification check
+  IDs and added digest-bound ReviewPacket plus separate complete diff artifacts.
+- Added optional fail-open Graphify indexing for exact-head architecture context,
+  with no automatic installation.
+- Added interactive architecture and workflow diagrams, a Graphify baseline, and
+  layered English and Traditional Chinese guides.
 
 ### Compatibility
 

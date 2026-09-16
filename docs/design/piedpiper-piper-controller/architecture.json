@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Pied Piper dual-model architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/devos-ing/piedpiper",
+      "revision": "3862485d756884c92a0f8495d893fdf581169642"
+    },
+    "viewBox": [1380, 860]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User",
+      "sublabel": "goal + mode choice",
+      "pos": [25, 300],
+      "size": [150, 92]
+    },
+    {
+      "id": "mode",
+      "type": "frontend",
+      "label": "Mode selector",
+      "sublabel": "immutable model pair",
+      "pos": [215, 300],
+      "size": [170, 92],
+      "sources": [{ "path": "src/piedpiper/cli.ts" }]
+    },
+    {
+      "id": "piper",
+      "type": "backend",
+      "label": "Piper",
+      "sublabel": "Astra xhigh · read-only controller",
+      "pos": [430, 275],
+      "size": [200, 112],
+      "sources": [
+        { "path": "src/piedpiper/extension.ts" },
+        { "path": "src/piedpiper/cli.ts" }
+      ]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "Change state",
+      "sublabel": "brief · plan · routes · evidence",
+      "pos": [430, 560],
+      "size": [200, 105],
+      "sources": [
+        { "path": "src/piedpiper/state.ts" },
+        { "path": "src/piedpiper/progress.ts" }
+      ]
+    },
+    {
+      "id": "workers",
+      "type": "backend",
+      "label": "Worker pool",
+      "sublabel": "Pi · read-only or writer",
+      "pos": [695, 115],
+      "size": [200, 105],
+      "sources": [{ "path": "src/piedpiper/supervisor.ts" }]
+    },
+    {
+      "id": "workspace",
+      "type": "backend",
+      "label": "Feature workspace",
+      "sublabel": "worktrees · serial merge",
+      "pos": [950, 115],
+      "size": [210, 105],
+      "sources": [{ "path": "src/piedpiper/workspace.ts" }]
+    },
+    {
+      "id": "graphify",
+      "type": "database",
+      "label": "Graphify",
+      "sublabel": "optional architecture context",
+      "pos": [695, 560],
+      "size": [200, 105]
+    },
+    {
+      "id": "review",
+      "type": "security",
+      "label": "Fresh Reviewer",
+      "sublabel": "Astra xhigh · exact revision",
+      "pos": [950, 515],
+      "size": [210, 105],
+      "sources": [
+        { "path": "src/piedpiper/delivery.ts" },
+        { "path": "src/piedpiper/supervisor.ts" }
+      ]
+    },
+    {
+      "id": "delivery",
+      "type": "cloud",
+      "label": "Pull request",
+      "sublabel": "reviewed or clearly unreviewed",
+      "pos": [1180, 300],
+      "size": [180, 105],
+      "sources": [{ "path": "src/piedpiper/delivery.ts" }]
+    }
+  ],
+  "connections": [
+    { "id": "choose-mode", "from": "user", "to": "mode", "variant": "emphasis" },
+    { "id": "start-piper", "from": "mode", "to": "piper" },
+    { "id": "persist-context", "from": "piper", "to": "state" },
+    { "id": "delegate-work", "from": "piper", "to": "workers" },
+    { "id": "write-result", "from": "workers", "to": "workspace" },
+    { "id": "direct-delivery", "from": "workspace", "to": "delivery", "variant": "dashed" },
+    { "id": "update-graph", "from": "workspace", "to": "graphify", "variant": "dashed" },
+    {
+      "id": "review-packet",
+      "from": "state",
+      "to": "review",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [[530, 730], [1055, 730]]
+    },
+    { "id": "graph-context", "from": "graphify", "to": "review", "variant": "dashed" },
+    { "id": "accept-delivery", "from": "review", "to": "delivery", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "One controller",
+      "items": [
+        "Piper plans, tracks, delegates, integrates, and delivers",
+        "Piper never authors code directly"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Modes pin both lanes",
+      "items": [
+        "Astra xhigh controls every change",
+        "Worker model is immutable for the life of a change",
+        "Experimental routes use Pi through Command Provider API"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Independent when requested",
+      "items": [
+        "Fresh review receives a structured packet",
+        "Skipped review is labeled unreviewed",
+        "Rejected review returns to planning"
+      ]
+    }
+  ]
+}
